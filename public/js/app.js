@@ -69,12 +69,23 @@
     viewElement.classList.add('active');
   }
 
-  // Calculate local or tunnel URL for invite link & QR code
+  // Calculate local, tunnel, or cloud URL for invite link & QR code
   function getInviteUrl(localIp, port, rId) {
+    // 1. If running on cloud domain (e.g. .onrender.com, .glitch.me, etc.)
+    const isCloudHost = !window.location.hostname.match(/^(\d{1,3}\.){3}\d{1,3}$/) && 
+                        window.location.hostname !== 'localhost' && 
+                        window.location.hostname !== '127.0.0.1';
+    if (isCloudHost) {
+      return `${window.location.protocol}//${window.location.host}/?room=${rId}`;
+    }
+
+    // 2. If localIp is a full URL (like tunnelmole)
     if (localIp && (localIp.startsWith('http://') || localIp.startsWith('https://'))) {
       const cleanUrl = localIp.replace(/\/$/, '');
       return `${cleanUrl}/?room=${rId}`;
     }
+
+    // 3. If running locally on PC
     const host = (localIp && localIp !== '127.0.0.1' && localIp !== 'localhost') 
       ? `${localIp}:${port}` 
       : `${window.location.hostname}:${port}`;
