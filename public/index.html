@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🪄 마법빙고 - 실시간 멀티플레이 빙고 게임</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jua&family=Gothic+A1:wght@300;400;700&display=swap" rel="stylesheet">
+  
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- Third-party Libraries -->
+  <!-- Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- QRCode.js (Local Offline-friendly) -->
+  <script src="js/qrcode.min.js"></script>
+  <!-- Canvas Confetti (Local Offline-friendly) -->
+  <script src="js/confetti.browser.min.js"></script>
+</head>
+<body class="magic-theme">
+
+  <!-- Background Animated Elements -->
+  <div class="stars-bg"></div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="logo-container" id="btn-logo">
+      <span class="magic-wand">🪄</span>
+      <h1 class="logo-title">마법빙고</h1>
+      <span class="magic-sparkle">✨</span>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+
+    <!-- 1. HOME VIEW -->
+    <section id="view-home" class="view-section active">
+      <div class="card intro-card animate-pop">
+        <h2 class="title-gradient">신나는 실시간 마법빙고!</h2>
+        <p class="subtitle">친구들과 함께 즐기는 귀여운 도장 빙고 게임</p>
+        
+        <div class="action-grid">
+          <button id="btn-choose-host" class="btn btn-primary btn-large">
+            <span class="icon">🏫</span>
+            <div class="btn-text">
+              <span class="btn-title">방 만들기</span>
+              <span class="btn-desc">선생님 / 호스트용 게임 개설</span>
+            </div>
+          </button>
+          
+          <button id="btn-choose-student" class="btn btn-secondary btn-large">
+            <span class="icon">🎒</span>
+            <div class="btn-text">
+              <span class="btn-title">방 참가하기</span>
+              <span class="btn-desc">학생용 게임 코드 입력</span>
+            </div>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. GAME SETUP VIEW (Host Settings) -->
+    <section id="view-setup" class="view-section">
+      <div class="card setup-card animate-slide-up">
+        <button class="btn-back" id="btn-setup-back">⬅️ 뒤로가기</button>
+        <h2 class="section-title">✨ 빙고 게임 설정</h2>
+        
+        <div class="form-group">
+          <label for="input-topic">🎯 빙고 주제</label>
+          <input type="text" id="input-topic" placeholder="예) 동물 이름, 영어 단어, 우리 반 친구" value="동물 이름">
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="input-grid-cols">↔️ 가로 칸 수 (3~6)</label>
+            <input type="number" id="input-grid-cols" min="3" max="6" value="5">
+          </div>
+          
+          <div class="form-group col">
+            <label for="input-grid-rows">↕️ 세로 칸 수 (3~6)</label>
+            <input type="number" id="input-grid-rows" min="3" max="6" value="5">
+          </div>
+          
+          <div class="form-group col">
+            <label for="input-target-bingo">🏆 목표 빙고 줄 수</label>
+            <input type="number" id="input-target-bingo" min="1" max="12" value="2">
+          </div>
+        </div>
+
+        <div class="grid-preview-container">
+          <span class="preview-label">빙고판 미리보기</span>
+          <div id="grid-preview" class="grid-preview size-5">
+            <!-- Dynamic Preview Cells -->
+          </div>
+        </div>
+        
+        <button id="btn-create-room" class="btn btn-accent btn-block btn-pulse">
+          🪄 방 개설하기
+        </button>
+      </div>
+    </section>
+
+    <!-- 3. STUDENT DIRECT JOIN VIEW -->
+    <section id="view-student-join" class="view-section">
+      <div class="card join-card animate-slide-up">
+        <button class="btn-back" id="btn-join-back">⬅️ 뒤로가기</button>
+        <h2 class="section-title">🎒 빙고 게임 참가</h2>
+        
+        <div class="form-group">
+          <label for="input-room-code">🔑 방 번호 (4자리 숫자)</label>
+          <input type="number" id="input-room-code" placeholder="예) 1234" pattern="\d*">
+        </div>
+        
+        <button id="btn-find-room" class="btn btn-primary btn-block">
+          다음 단계로 ➡️
+        </button>
+      </div>
+    </section>
+
+    <!-- 4. STUDENT NAME REGISTRATION VIEW -->
+    <section id="view-student-name" class="view-section">
+      <div class="card name-card animate-slide-up">
+        <h2 class="section-title">👋 본인의 이름을 입력해 주세요</h2>
+        <p class="subtitle" id="label-join-room-info"></p>
+        
+        <div class="form-group">
+          <label for="input-student-name">🧑‍🎓 이름</label>
+          <input type="text" id="input-student-name" placeholder="예) 홍길동" maxlength="10">
+        </div>
+        
+        <button id="btn-submit-name" class="btn btn-accent btn-block">
+          입장하기 🐾
+        </button>
+      </div>
+    </section>
+
+    <!-- 5. HOST LOBBY VIEW -->
+    <section id="view-host-lobby" class="view-section">
+      <div class="lobby-layout">
+        <!-- Left Side: Room Info, Link, QR -->
+        <div class="card lobby-info-card animate-slide-right">
+          <h2 class="room-code-title">방 개설 완료!</h2>
+          
+          <div class="code-box-container">
+            <span class="code-label">방 번호</span>
+            <div class="code-number-display" id="display-host-room-id">0000</div>
+          </div>
+
+          <div class="invite-link-container">
+            <label>🔗 초대 링크</label>
+            <div class="copy-input-group">
+              <input type="text" id="input-invite-link" readonly value="">
+              <button id="btn-copy-link" class="btn btn-secondary btn-sm">복사</button>
+            </div>
+          </div>
+
+          <div class="qr-container">
+            <label>📱 QR 코드로 간편 입장</label>
+            <div id="qr-code-canvas" class="qr-canvas">
+              <!-- QR Code Canvas Rendered Here -->
+            </div>
+            <p class="qr-desc">학생들이 카메라로 스캔하여 참여할 수 있습니다.</p>
+          </div>
+        </div>
+
+        <!-- Right Side: Connected Players & Setup Stats -->
+        <div class="card lobby-players-card animate-slide-left">
+          <div class="lobby-stats-header">
+            <div>
+              <h3>주제: <span id="label-host-lobby-topic" class="highlight-text">동물</span></h3>
+              <p class="lobby-setting-sub">빙고 크기: <span id="label-host-lobby-size">5x5</span> | 목표: <span id="label-host-lobby-target">2줄</span></p>
+            </div>
+            <div class="counter-badge">
+              참가 학생: <span id="counter-lobby-players">0</span>명
+            </div>
+          </div>
+
+          <div class="player-list-wrapper">
+            <h4 class="list-heading">🐾 참여 학생 목록</h4>
+            <div class="player-grid-list" id="list-lobby-players">
+              <!-- Empty state illustrated via JS if 0 players -->
+            </div>
+          </div>
+
+          <div class="lobby-action-box">
+            <button id="btn-start-game" class="btn btn-accent btn-block btn-large btn-pulse" disabled>
+              🎲 빙고 시작 (0명 준비됨)
+            </button>
+            <p class="action-hint">모든 학생이 단어 입력을 완료하면 시작할 수 있습니다.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. STUDENT LOBBY / BINGO WORD INPUT VIEW -->
+    <section id="view-student-lobby" class="view-section">
+      <div class="card student-lobby-card animate-slide-up">
+        <div class="lobby-banner">
+          <div>
+            <span class="role-badge">학생 화면</span>
+            <h2 id="label-student-topic" class="topic-title">주제: 동물 이름</h2>
+          </div>
+          <div class="settings-summary">
+            <span>목표: <strong id="label-student-target">2줄</strong></span>
+            <span>작성: <strong id="label-student-size">5x5</strong></span>
+          </div>
+        </div>
+
+        <div class="board-instruction-box">
+          <p class="instruction-text">💡 아래의 빈칸들을 터치하거나 클릭하여 <strong>주제와 관련된 단어</strong>를 채워 넣으세요!</p>
+          <div class="btn-group-sm">
+            <button id="btn-fill-random" class="btn btn-secondary btn-sm">🎲 무작위 채우기</button>
+            <button id="btn-clear-all" class="btn btn-danger-outline btn-sm">🧹 전부 비우기</button>
+          </div>
+        </div>
+
+        <!-- Student Word Entry Board -->
+        <div class="board-wrapper">
+          <div id="grid-student-input" class="bingo-grid">
+            <!-- Generated Dynamic Form Fields -->
+          </div>
+        </div>
+
+        <div class="student-submit-container">
+          <button id="btn-submit-board" class="btn btn-accent btn-block btn-large">
+            ✍️ 입력 완료!
+          </button>
+        </div>
+      </div>
+
+      <!-- Student Ready Wait Screen Overlay -->
+      <div id="overlay-wait-start" class="wait-overlay">
+        <div class="wait-content animate-bounce-slow">
+          <div class="loader-dog-paw">🐾</div>
+          <h3>빙고판 입력 완료!</h3>
+          <p>선생님 화면에서 게임이 시작되기를 기다리고 있습니다.</p>
+          <div class="player-badge-name" id="display-wait-name">홍길동</div>
+          <button id="btn-edit-board" class="btn btn-secondary btn-sm">다시 수정하기</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. HOST GAME DASHBOARD VIEW -->
+    <section id="view-host-game" class="view-section">
+      <div class="host-game-layout">
+        <!-- Side Panel: Stats, Turns, Word list -->
+        <div class="card host-sidebar animate-slide-right">
+          <div class="sidebar-top">
+            <span class="room-indicator">방 번호: <strong id="label-host-game-room-id">0000</strong></span>
+            <h2 class="game-topic-header">🎯 <span id="label-host-game-topic">동물 이름</span></h2>
+            <p class="game-target-sub">목표: <strong id="label-host-game-target">2줄</strong></p>
+          </div>
+
+          <!-- Current Turn Display -->
+          <div class="current-turn-card animate-pulse-border">
+            <span class="turn-label">🎤 발표할 학생 차례</span>
+            <div class="active-player-name" id="display-host-turn-player">-</div>
+            <div class="turn-order-flow" id="display-host-turn-order">
+              <!-- Sequential queue preview -->
+            </div>
+          </div>
+
+          <!-- Drawn Words History -->
+          <div class="history-card">
+            <h4>📢 나온 단어 (<span id="counter-host-drawn-words">0</span>개)</h4>
+            <div class="drawn-words-badge-list" id="list-host-drawn-words">
+              <!-- Words shown as chips -->
+            </div>
+          </div>
+
+          <!-- Host control footer -->
+          <div class="sidebar-controls">
+            <button id="btn-host-end-game" class="btn btn-danger btn-block">
+              🛑 게임 끝내기
+            </button>
+          </div>
+        </div>
+
+        <!-- Main Area: Grid of all students boards (Teacher can watch everything!) -->
+        <div class="card host-boards-dashboard animate-slide-left">
+          <div class="dashboard-header">
+            <h3>📈 학생 빙고 현황 실시간 감시</h3>
+            <span class="live-pulse">● LIVE</span>
+          </div>
+          
+          <div class="student-boards-grid" id="grid-host-students-boards">
+            <!-- Miniature Student Boards render here -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. STUDENT GAME BOARD VIEW -->
+    <section id="view-student-game" class="view-section">
+      <div class="student-game-layout card animate-slide-up">
+        
+        <!-- Turn Alert Strip -->
+        <div id="banner-student-turn-status" class="turn-status-banner waiting">
+          <div class="banner-icon-container">🐾</div>
+          <div class="banner-text-box">
+            <span class="banner-label">게임 상태</span>
+            <h3 class="banner-message" id="label-student-turn-message">다른 친구들의 선택을 기다리는 중...</h3>
+          </div>
+        </div>
+
+        <!-- Main Layout with Board & Info Panel -->
+        <div class="game-main-content">
+          <!-- Left side: Interactive Board -->
+          <div class="board-column">
+            <div class="board-header-row">
+              <span class="player-identity">🧑‍🎓 <strong id="display-student-game-name">홍길동</strong></span>
+              <span class="game-topic-badge" id="display-student-game-topic">주제: 동물 이름</span>
+            </div>
+
+            <div class="board-wrapper">
+              <div id="grid-student-game-board" class="bingo-grid game-play-grid">
+                <!-- Interactive Bingo Board Grid with items containing words and dog stamps -->
+              </div>
+            </div>
+
+            <!-- Bingo Status Badge Row -->
+            <div class="bingo-badge-row">
+              <div class="bingo-status-badge">
+                <span class="emoji">🏆</span>
+                <span class="text">목표: <strong id="label-student-game-target">2</strong>줄</span>
+              </div>
+              <div class="bingo-status-badge success-count" id="badge-current-bingo-count">
+                <span class="emoji">✨</span>
+                <span class="text">현재: <strong id="display-student-bingo-count">0</strong>빙고</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right side: Quick Info Panel -->
+          <div class="info-column">
+            <!-- Drawn words -->
+            <div class="card inner-card word-history-card">
+              <h4>📢 나온 단어 목록 (<span id="counter-student-drawn-words">0</span>)</h4>
+              <div class="drawn-words-badge-list" id="list-student-drawn-words">
+                <!-- Chips -->
+              </div>
+            </div>
+
+            <!-- Joined Students Stats -->
+            <div class="card inner-card scoreboard-card">
+              <h4>📊 우리 반 빙고 현황</h4>
+              <div class="scoreboard-list" id="list-student-scoreboard">
+                <!-- Small bars/rows showing player bingo counts -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 9. VICTORY OVERLAY (BINGO COMPLETE MODAL) -->
+  <div id="overlay-victory" class="victory-modal-overlay">
+    <div class="victory-card animate-bounce-slow">
+      <div class="trophy-emitter">🏆</div>
+      <h1 class="victory-title animate-pulse-size">🎉 빙고 완성! 🎉</h1>
+      <p class="victory-subtitle">멋지게 목표 빙고 줄을 다 채웠어요!</p>
+      
+      <div class="winners-showcase">
+        <h3>🥇 명단 🥇</h3>
+        <div class="winners-badge-list" id="list-victory-winners">
+          <!-- Winner Names large chips -->
+        </div>
+      </div>
+
+      <!-- Action buttons depending on role -->
+      <div class="victory-controls" id="host-victory-controls">
+        <button id="btn-victory-continue" class="btn btn-accent btn-large btn-block btn-pulse">
+          🔄 계속하기 (남은 학생끼리 진행)
+        </button>
+        <button id="btn-victory-end" class="btn btn-danger-outline btn-large btn-block">
+          🛑 빙고 끝내기 (게임 종료)
+        </button>
+      </div>
+
+      <div class="victory-controls student-view-only" id="student-victory-controls">
+        <div class="student-wait-alert">
+          <span class="spinner-small"></span>
+          선생님이 다음 행동을 설정하고 있습니다...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio elements helper (fallback visual / synthesizer controller) -->
+  <div class="audio-controller-hidden"></div>
+
+  <!-- Custom JS Modules -->
+  <script src="js/sounds.js"></script>
+  <script src="js/dog-stamps.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

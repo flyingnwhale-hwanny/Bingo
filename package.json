@@ -1,0 +1,14 @@
+{
+  "name": "magic-bingo",
+  "version": "1.0.0",
+  "description": "Magic Bingo multiplayer web application",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.7.5"
+  }
+}
