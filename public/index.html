@@ -93,6 +93,18 @@
         </div>
 
         <div class="form-group">
+          <label>🎭 방개설자(선생님) 역할 선택</label>
+          <div class="mode-select-group">
+            <button type="button" id="btn-host-role-spectator" class="btn-mode-select active">
+              👀 관전 모드 (선생님 전용 관리)
+            </button>
+            <button type="button" id="btn-host-role-player" class="btn-mode-select">
+              🎮 직접 참여 모드 (선생님도 게임 참여!)
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
           <label>⚙️ 빙고 단어 채우기 방식 선택</label>
           <div class="mode-select-group">
             <button type="button" id="btn-mode-pool" class="btn-mode-select active">
@@ -206,8 +218,9 @@
 
           <div class="lobby-action-box">
             <button id="btn-start-game" class="btn btn-accent btn-block btn-large btn-pulse" disabled>
-              🎲 빙고 시작
+              🎲 빙고 시작 (0명 준비됨)
             </button>
+            <p class="action-hint">모든 학생이 단어 입력을 완료하면 시작할 수 있습니다.</p>
           </div>
         </div>
       </div>
@@ -313,10 +326,14 @@
           </div>
         </div>
 
-        <!-- Main Area: Grid of all students boards (Teacher can watch everything!) -->
+        <!-- Main Area: Grid of all students boards (Teacher can watch or play!) -->
         <div class="card host-boards-dashboard animate-slide-left">
           <div class="dashboard-header">
-            <h3>📈 학생 빙고 현황 실시간 감시</h3>
+            <div id="container-host-view-tabs" class="host-view-tabs" style="display: none;">
+              <button type="button" id="btn-tab-host-board" class="btn-host-tab active">🎮 내 빙고판 (선생님 플레이)</button>
+              <button type="button" id="btn-tab-host-spy" class="btn-host-tab">📈 학생 전체 감시판</button>
+            </div>
+            <h3 id="heading-host-dashboard-title">📈 학생 빙고 현황 실시간 감시</h3>
             <span class="live-pulse">● LIVE</span>
           </div>
           

@@ -11,6 +11,8 @@
   let fillMode = 'pool'; // 'pool' or 'direct'
   let wordPool = []; // Array of parsed word strings
   let selectedFillMode = 'pool'; // Host setup selection
+  let hostRole = 'spectator'; // 'spectator' or 'player'
+  let selectedHostRole = 'spectator'; // Host setup selection
   let selectedPoolChipWord = null; // Currently clicked word chip for touch placement
 
   let boardWords = []; // 1D array of length rows * cols
@@ -258,6 +260,7 @@
       targetBingo = data.settings.targetBingo;
       fillMode = data.settings.fillMode || 'pool';
       wordPool = data.settings.wordPool || [];
+      hostRole = data.settings.hostRole || 'spectator';
       drawnWords = data.drawnWords || [];
 
       if (data.role === 'host') {
@@ -386,6 +389,28 @@
         renderHostDrawnWords();
         renderHostTurnCard();
         renderHostSpyDashboard(data.players);
+
+        const tabsContainer = document.getElementById('container-host-view-tabs');
+        const playBoardContainer = document.getElementById('container-host-play-board');
+        const spyDashboardContainer = document.getElementById('grid-host-students-boards');
+        const headingTitle = document.getElementById('heading-host-dashboard-title');
+
+        if (hostRole === 'player') {
+          if (tabsContainer) tabsContainer.style.display = 'flex';
+          const hostPlayer = (data.players || []).find(p => p.isHost || p.name === '선생님');
+          if (hostPlayer && hostPlayer.board) {
+            renderHostPlayBoard(hostPlayer.board, hostPlayer.stamped);
+          }
+          if (playBoardContainer) playBoardContainer.style.display = 'flex';
+          if (spyDashboardContainer) spyDashboardContainer.style.display = 'none';
+          if (headingTitle) headingTitle.innerText = '🎮 선생님 빙고 게임판';
+        } else {
+          if (tabsContainer) tabsContainer.style.display = 'none';
+          if (playBoardContainer) playBoardContainer.style.display = 'none';
+          if (spyDashboardContainer) spyDashboardContainer.style.display = 'grid';
+          if (headingTitle) headingTitle.innerText = '📈 학생 빙고 현황 실시간 감시';
+        }
+
         showView(views.hostGame);
       } else {
         // Collect student's local typed input words if present
@@ -557,10 +582,28 @@
     const rowsInput = document.getElementById('input-grid-rows');
     const btnModePool = document.getElementById('btn-mode-pool');
     const btnModeDirect = document.getElementById('btn-mode-direct');
+    const btnHostRoleSpectator = document.getElementById('btn-host-role-spectator');
+    const btnHostRolePlayer = document.getElementById('btn-host-role-player');
     const groupWordPool = document.getElementById('group-word-pool');
     const inputWordPool = document.getElementById('input-word-pool');
     const labelMinPoolCount = document.getElementById('label-min-pool-count');
     const counterPoolEntered = document.getElementById('counter-pool-entered');
+
+    if (btnHostRoleSpectator && btnHostRolePlayer) {
+      btnHostRoleSpectator.addEventListener('click', () => {
+        selectedHostRole = 'spectator';
+        btnHostRoleSpectator.classList.add('active');
+        btnHostRolePlayer.classList.remove('active');
+        SoundEffects.playClick();
+      });
+
+      btnHostRolePlayer.addEventListener('click', () => {
+        selectedHostRole = 'player';
+        btnHostRolePlayer.classList.add('active');
+        btnHostRoleSpectator.classList.remove('active');
+        SoundEffects.playClick();
+      });
+    }
 
     function updateWordPoolCounter() {
       if (!inputWordPool) return;
@@ -662,7 +705,8 @@
         cols: cols,
         targetBingo: target,
         fillMode: selectedFillMode,
-        wordPool: parsedPool
+        wordPool: parsedPool,
+        hostRole: selectedHostRole
       });
     });
 
@@ -804,7 +848,32 @@
       });
     }
 
-    // --- Victory Modal Actions (Host buttons) ---
+    // Host view tabs listener
+    const btnTabHostBoard = document.getElementById('btn-tab-host-board');
+    const btnTabHostSpy = document.getElementById('btn-tab-host-spy');
+    const containerHostPlayBoard = document.getElementById('container-host-play-board');
+    const gridHostStudentsBoards = document.getElementById('grid-host-students-boards');
+    const headingHostTitle = document.getElementById('heading-host-dashboard-title');
+
+    if (btnTabHostBoard && btnTabHostSpy) {
+      btnTabHostBoard.addEventListener('click', () => {
+        btnTabHostBoard.classList.add('active');
+        btnTabHostSpy.classList.remove('active');
+        if (containerHostPlayBoard) containerHostPlayBoard.style.display = 'flex';
+        if (gridHostStudentsBoards) gridHostStudentsBoards.style.display = 'none';
+        if (headingHostTitle) headingHostTitle.innerText = '🎮 선생님 빙고 게임판';
+        SoundEffects.playClick();
+      });
+
+      btnTabHostSpy.addEventListener('click', () => {
+        btnTabHostSpy.classList.add('active');
+        btnTabHostBoard.classList.remove('active');
+        if (containerHostPlayBoard) containerHostPlayBoard.style.display = 'none';
+        if (gridHostStudentsBoards) gridHostStudentsBoards.style.display = 'grid';
+        if (headingHostTitle) headingHostTitle.innerText = '📈 학생 빙고 현황 실시간 감시';
+        SoundEffects.playClick();
+      });
+    }
     const btnVictoryContinue = document.getElementById('btn-victory-continue');
     if (btnVictoryContinue) {
       btnVictoryContinue.addEventListener('click', () => {
@@ -873,7 +942,55 @@
     }
   }
 
-  // Render Host Lobby list of students
+  // Render Host's interactive playing board when hostRole === 'player'
+  function renderHostPlayBoard(board, stampedMatrix) {
+    const gridContainer = document.getElementById('grid-host-play-board');
+    if (!gridContainer) return;
+    gridContainer.className = `bingo-grid game-play-grid`;
+    gridContainer.style.gridTemplateColumns = `repeat(${gridCols}, 1fr)`;
+    gridContainer.style.aspectRatio = `${gridCols} / ${gridRows}`;
+    gridContainer.innerHTML = '';
+
+    const rows = gridRows;
+    const cols = gridCols;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const idx = r * cols + c;
+        const word = board[idx] || `단어${idx + 1}`;
+        const isStamped = (stampedMatrix && stampedMatrix[r] && stampedMatrix[r][c]) || drawnWords.includes(word);
+
+        const cell = document.createElement('div');
+        cell.className = `bingo-cell ${isStamped ? 'stamped' : ''}`;
+        cell.dataset.row = r;
+        cell.dataset.col = c;
+        cell.dataset.word = word;
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'cell-content-text';
+        textSpan.innerText = word;
+
+        if (isStamped) {
+          const stampBadge = document.createElement('div');
+          stampBadge.className = 'stamp-mark animate-pop';
+          stampBadge.innerText = '🐾';
+          cell.appendChild(stampBadge);
+        }
+
+        cell.appendChild(textSpan);
+
+        cell.addEventListener('click', () => {
+          if (!isStamped) {
+            socket.emit('selectWord', { roomId, word });
+            SoundEffects.playStamp();
+          }
+        });
+
+        gridContainer.appendChild(cell);
+      }
+    }
+  }
+
+  // Render host dashboard player list
   function renderHostLobbyPlayers(players) {
     const listContainer = document.getElementById('list-lobby-players');
     const totalCounter = document.getElementById('counter-lobby-players');

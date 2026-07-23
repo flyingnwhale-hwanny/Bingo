@@ -135,7 +135,7 @@ io.on('connection', (socket) => {
   console.log(`New client connected: ${socket.id}`);
 
   // 1. Create Room (Host)
-  socket.on('createRoom', ({ topic, rows, cols, targetBingo, fillMode, wordPool }) => {
+  socket.on('createRoom', ({ topic, rows, cols, targetBingo, fillMode, wordPool, hostRole }) => {
     // Generate a unique 4-digit room code
     let roomId;
     do {
@@ -145,6 +145,8 @@ io.on('connection', (socket) => {
     const cleanWordPool = Array.isArray(wordPool) 
       ? wordPool.map(w => cleanString(w)).filter(Boolean) 
       : [];
+
+    const isHostPlayer = hostRole === 'player';
 
     rooms[roomId] = {
       id: roomId,
@@ -156,6 +158,7 @@ io.on('connection', (socket) => {
       targetBingo: parseInt(targetBingo) || 2,
       fillMode: fillMode === 'direct' ? 'direct' : 'pool',
       wordPool: cleanWordPool,
+      hostRole: isHostPlayer ? 'player' : 'spectator',
       hostSocketId: socket.id,
       players: {},
       status: 'lobby', // lobby, playing, finished
@@ -166,11 +169,25 @@ io.on('connection', (socket) => {
       allTimeWinners: []
     };
 
+    if (isHostPlayer) {
+      const hostPlayerName = '선생님';
+      rooms[roomId].players[hostPlayerName] = {
+        name: hostPlayerName,
+        socketId: socket.id,
+        board: [],
+        stamped: Array(rooms[roomId].gridSize.rows).fill(null).map(() => Array(rooms[roomId].gridSize.cols).fill(false)),
+        ready: false,
+        won: false,
+        isHost: true
+      };
+      socket.playerName = hostPlayerName;
+    }
+
     socket.join(roomId);
     socket.roomId = roomId;
     socket.isHost = true;
 
-    console.log(`Room created: ${roomId} by host socket ${socket.id} (mode: ${rooms[roomId].fillMode}, pool count: ${cleanWordPool.length})`);
+    console.log(`Room created: ${roomId} by host socket ${socket.id} (hostRole: ${rooms[roomId].hostRole}, fillMode: ${rooms[roomId].fillMode})`);
     
     socket.emit('roomCreated', {
       roomId,
@@ -201,6 +218,10 @@ function cleanString(str) {
     if (role === 'host') {
       room.hostSocketId = socket.id;
       socket.isHost = true;
+      if (room.hostRole === 'player' && room.players['선생님']) {
+        room.players['선생님'].socketId = socket.id;
+        socket.playerName = '선생님';
+      }
       console.log(`Host reconnected to room ${cleanRoomId} with socket ${socket.id}`);
       socket.emit('roomJoined', {
         role: 'host',
@@ -211,6 +232,7 @@ function cleanString(str) {
           targetBingo: room.targetBingo,
           fillMode: room.fillMode,
           wordPool: room.wordPool,
+          hostRole: room.hostRole,
           status: room.status
         },
         players: getPlayerList(room),
@@ -254,6 +276,7 @@ function cleanString(str) {
           targetBingo: room.targetBingo,
           fillMode: room.fillMode,
           wordPool: room.wordPool,
+          hostRole: room.hostRole,
           status: room.status
         },
         board: existingPlayer.board,
@@ -292,6 +315,7 @@ function cleanString(str) {
           targetBingo: room.targetBingo,
           fillMode: room.fillMode,
           wordPool: room.wordPool,
+          hostRole: room.hostRole,
           status: room.status
         },
         board: [],
