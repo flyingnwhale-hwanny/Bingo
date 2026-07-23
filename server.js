@@ -94,9 +94,9 @@ const LOCAL_IP = getLocalIpAddress();
 let publicTunnelUrl = null;
 
 function startTunnel() {
-  // Do NOT run local tunnels on cloud hosting (Render.com, etc.)
-  if (process.env.RENDER || process.env.NODE_ENV === 'production') {
-    console.log('Running on Cloud Server (Render). Local tunnel disabled.');
+  // Completely skip local tunnel tools when deployed on Cloud (Render, Heroku, etc.) or Linux servers
+  if (process.env.RENDER || process.env.PORT || process.env.NODE_ENV === 'production' || process.platform !== 'win32') {
+    console.log('Cloud environment or non-Windows OS detected. Local tunnel disabled.');
     return;
   }
 
