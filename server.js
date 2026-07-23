@@ -461,37 +461,6 @@ function cleanString(str) {
     });
   });
 
-    // Set game parameters
-    room.status = 'playing';
-    room.drawnWords = [];
-    room.winners = [];
-    
-    // Reset won status for players
-    players.forEach(p => {
-      p.won = false;
-      p.stamped = Array(room.gridSize.rows).fill(null).map(() => Array(room.gridSize.cols).fill(false));
-    });
-
-    // Create randomized turn sequence of players
-    const names = players.map(p => p.name);
-    room.turnSequence = shuffleArray(names);
-    room.turnIndex = 0;
-
-    console.log(`Game started in room ${roomId}. Turn sequence: ${room.turnSequence.join(' -> ')}`);
-
-    io.to(roomId).emit('gameStarted', {
-      turnSequence: room.turnSequence,
-      activeTurnPlayer: room.turnSequence[0],
-      settings: {
-        topic: room.topic,
-        gridSize: room.gridSize,
-        targetBingo: room.targetBingo,
-        status: room.status
-      },
-      players: getPlayerList(room) // Send detailed boards to Host
-    });
-  });
-
   // 5. Select Word (Turn Player)
   socket.on('selectWord', ({ roomId, name, word }) => {
     const room = rooms[roomId];

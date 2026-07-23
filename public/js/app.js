@@ -706,7 +706,6 @@
     }
 
     listContainer.innerHTML = '';
-    let readyCount = 0;
 
     players.forEach(player => {
       const pCard = document.createElement('div');
