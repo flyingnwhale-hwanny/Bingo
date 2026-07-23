@@ -154,6 +154,16 @@
 
     socket = io();
 
+    // 0. Auto Rejoin on Connection / Reconnection (for mobile screen wake/Wi-Fi jitter)
+    socket.on('connect', () => {
+      console.log('Socket connected/reconnected:', socket.id);
+      if (roomId && currentRole === 'student' && playerName) {
+        socket.emit('joinRoom', { roomId, name: playerName, role: 'student' });
+      } else if (roomId && currentRole === 'host') {
+        socket.emit('joinRoom', { roomId, role: 'host' });
+      }
+    });
+
     // 1. Error receiver
     socket.on('errorMsg', (msg) => {
       alert(`⚠️ 안내: ${msg}`);

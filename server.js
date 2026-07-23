@@ -325,6 +325,12 @@ function cleanString(str) {
       return;
     }
 
+    // Ensure socket room association & credentials (in case of mobile socket reconnection)
+    socket.join(cleanRoomId);
+    socket.roomId = cleanRoomId;
+    socket.playerName = player.name;
+    player.socketId = socket.id;
+
     player.board = board; // 1D array of length rows * cols
     player.ready = true;
     
