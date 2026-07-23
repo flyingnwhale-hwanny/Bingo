@@ -18,7 +18,7 @@
   let previousBingoCount = 0;
   let completedLinesTracked = [];
 
-  // Theme animals dictionary for quick random fill
+  // Theme dictionary for quick random fill
   const wordDictionary = {
     '동물 이름': [
       '사자', '호랑이', '토끼', '여우', '곰', '기린', '코끼리', '원숭이', '다람쥐', '판다', 
@@ -34,6 +34,12 @@
       '대한민국', '세종대왕', '한글', '무궁화', '애국가', '독도', '백두산', '한강', '경복궁', '태극기',
       '화산', '지진', '퇴적암', '수권', '기권', '태양계', '중력', '마찰력', '광합성', '소화',
       '분수', '소수', '삼각형', '사각형', '원', '덧셈', '뺄셈', '곱셈', '나눗셈', '평균'
+    ],
+    '나라 이름': [
+      '미국', '캐나다', '브라질', '아르헨티나', '멕시코', '칠레', '콜롬비아', '페루', '쿠바', '자메이카',
+      '우루과이', '파라과이', '베네수엘라', '에콰도르', '볼리비아', '파나마', '코스타리카', '과테말라', '온두라스', '엘살바도르',
+      '한국', '일본', '중국', '영국', '프랑스', '독일', '이탈리아', '스페인', '호주', '뉴질랜드',
+      '베트남', '태국', '인도', '이집트', '그리스', '스위스', '네덜란드', '벨기에', '스웨덴', '핀란드'
     ]
   };
 
@@ -362,14 +368,26 @@
         renderHostSpyDashboard(data.players);
         showView(views.hostGame);
       } else {
-        // Retrieve my updated board from data.players
+        // Collect student's local typed input words if present
+        const inputCells = document.querySelectorAll('.bingo-input-cell input');
+        const localWords = Array.from(inputCells).map(input => input.value.trim());
+
         const myDetails = (data.players || []).find(p => isSameName(p.name, playerName));
-        if (myDetails && myDetails.board && myDetails.board.length > 0) {
-          boardWords = myDetails.board;
-        } else {
-          const cells = document.querySelectorAll('.bingo-input-cell input');
-          boardWords = Array.from(cells).map(input => input.value.trim());
+        const serverBoard = (myDetails && myDetails.board) ? myDetails.board : [];
+
+        // Build final student board: ALWAYS prioritize student's local typed words first!
+        const totalCount = gridRows * gridCols;
+        const finalBoard = [];
+        for (let i = 0; i < totalCount; i++) {
+          if (localWords[i] && localWords[i] !== '') {
+            finalBoard.push(localWords[i].normalize('NFC'));
+          } else if (serverBoard[i] && serverBoard[i] !== '') {
+            finalBoard.push(serverBoard[i]);
+          } else {
+            finalBoard.push(`단어${i + 1}`);
+          }
         }
+        boardWords = finalBoard;
 
         const emptyStamp = Array(gridRows).fill(null).map(() => Array(gridCols).fill(false));
         const stampedMatrix = (myDetails && myDetails.stamped) ? myDetails.stamped : emptyStamp;
@@ -830,6 +848,22 @@
       : `🎲 빙고 시작 (입력 완료한 학생 없음)`;
   }
 
+  // Real-time auto sync student input board with server
+  function autoSyncStudentBoard() {
+    const inputs = document.querySelectorAll('.bingo-input-cell input');
+    if (!inputs || inputs.length === 0) return;
+    const currentWords = Array.from(inputs).map(inp => inp.value.trim().normalize('NFC'));
+    boardWords = currentWords;
+    if (socket && socket.connected && roomId && playerName) {
+      socket.emit('submitBoard', {
+        roomId,
+        name: playerName.normalize('NFC'),
+        board: currentWords,
+        silent: true
+      });
+    }
+  }
+
   // Render student input board view
   function renderStudentInputGrid(rows, cols) {
     const gridContainer = document.getElementById('grid-student-input');
@@ -849,13 +883,17 @@
       input.placeholder = `단어 ${i + 1}`;
       input.id = `input-cell-${i}`;
       
-      // Auto tab movement helper
+      // Auto tab movement helper & live auto sync
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
           const nextInput = document.getElementById(`input-cell-${i + 1}`);
           if (nextInput) nextInput.focus();
         }
+      });
+
+      input.addEventListener('input', () => {
+        autoSyncStudentBoard();
       });
 
       const label = document.createElement('span');
@@ -870,9 +908,20 @@
 
   // Auto fill dictionary words
   function fillRandomWords() {
-    let pool = wordDictionary[topic] || [];
+    let pool = wordDictionary[topic];
+    if (!pool) {
+      const topicLower = String(topic).toLowerCase();
+      if (topicLower.includes('나라') || topicLower.includes('대륙') || topicLower.includes('국가') || topicLower.includes('아메리카') || topicLower.includes('아시아') || topicLower.includes('유럽')) {
+        pool = wordDictionary['나라 이름'];
+      } else if (topicLower.includes('영어')) {
+        pool = wordDictionary['영어 단어'];
+      } else if (topicLower.includes('교과')) {
+        pool = wordDictionary['교과 단어'];
+      } else {
+        pool = wordDictionary['동물 이름'];
+      }
+    }
     if (pool.length < gridRows * gridCols) {
-      // Fallback pool: generic number list
       pool = Array.from({ length: 40 }, (_, idx) => `단어${idx + 1}`);
     }
     
@@ -883,6 +932,7 @@
     inputs.forEach((input, index) => {
       input.value = shuffled[index] || `단어${index + 1}`;
     });
+    autoSyncStudentBoard();
     SoundEffects.playClick();
   }
 
@@ -890,6 +940,7 @@
   function clearAllWords() {
     const inputs = document.querySelectorAll('.bingo-input-cell input');
     inputs.forEach(input => { input.value = ''; });
+    autoSyncStudentBoard();
     SoundEffects.playClick();
   }
 

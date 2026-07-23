@@ -297,8 +297,62 @@ function cleanString(str) {
     io.to(cleanRoomId).emit('playersUpdated', getPlayerList(room));
   });
 
+// Topic-aware word dictionaries for auto-filling missing cells
+const topicDictionaries = {
+  '동물': [
+    '사자', '호랑이', '토끼', '여우', '곰', '기린', '코끼리', '원숭이', '다람쥐', '판다', 
+    '펭귄', '돌고래', '고양이', '강아지', '양', '염소', '소', '말', '돼지', '닭', 
+    '오리', '거북이', '개구리', '뱀', '악어', '사슴', '늑대', '하마', '코뿔소', '얼룩말',
+    '수달', '너구리', '표범', '치타', '낙타', '사막여우', '쿼카', '알파카', '물개', '바다표범'
+  ],
+  '영어': [
+    'Apple', 'Banana', 'Cat', 'Dog', 'Elephant', 'Fox', 'Giraffe', 'Horse', 'Ice', 'Juice',
+    'Kangaroo', 'Lion', 'Monkey', 'Nose', 'Orange', 'Pencil', 'Queen', 'Rabbit', 'Snake', 'Tiger',
+    'Umbrella', 'Violin', 'Water', 'Xylophone', 'Yellow', 'Zebra', 'Sun', 'Moon', 'Star', 'Tree',
+    'Book', 'Desk', 'Chair', 'School', 'Teacher', 'Student', 'Friend', 'Family', 'Love', 'Happy'
+  ],
+  '교과': [
+    '대한민국', '세종대왕', '한글', '무궁화', '애국가', '독도', '백두산', '한강', '경복궁', '태극기',
+    '화산', '지진', '퇴적암', '수권', '기권', '태양계', '중력', '마찰력', '광합성', '소화',
+    '분수', '소수', '삼각형', '사각형', '원', '덧셈', '뺄셈', '곱셈', '나눗셈', '평균'
+  ],
+  '나라': [
+    '미국', '캐나다', '브라질', '아르헨티나', '멕시코', '칠레', '콜롬비아', '페루', '쿠바', '자메이카',
+    '우루과이', '파라과이', '베네수엘라', '에콰도르', '볼리비아', '파나마', '코스타리카', '과테말라', '온두라스', '엘살바도르',
+    '한국', '일본', '중국', '영국', '프랑스', '독일', '이탈리아', '스페인', '호주', '뉴질랜드',
+    '베트남', '태국', '인도', '이집트', '그리스', '스위스', '네덜란드', '벨기에', '스웨덴', '핀란드'
+  ],
+  '과일': [
+    '사과', '바나나', '포도', '딸기', '수박', '참외', '복숭아', '오렌지', '망고', '파인애플',
+    '키위', '자두', '살구', '감', '귤', '한라봉', '체리', '석류', '무화과', '멜론'
+  ],
+  '음식': [
+    '비빔밥', '불고기', '김치찌개', '된장찌개', '떡볶이', '김밥', '라면', '치킨', '피자', '햄버거',
+    '삼겹살', '갈비', '잡채', '파전', '냉면', '칼국수', '수제비', '만두', '순대', '족발'
+  ],
+  '운동': [
+    '축구', '야구', '농구', '배구', '수영', '태권도', '테니스', '골프', '탁구', '볼링',
+    '배드민턴', '양궁', '펜싱', '유도', '레슬링', '육상', '체조', '스케이트', '스키', '줄넘기'
+  ]
+};
+
+function getTopicWords(topicName) {
+  if (!topicName) return topicDictionaries['동물'];
+  const name = String(topicName).toLowerCase().trim();
+
+  if (name.includes('동물')) return topicDictionaries['동물'];
+  if (name.includes('영어') || name.includes('english')) return topicDictionaries['영어'];
+  if (name.includes('나라') || name.includes('대륙') || name.includes('국가') || name.includes('아메리카') || name.includes('아시아') || name.includes('유럽')) return topicDictionaries['나라'];
+  if (name.includes('과일')) return topicDictionaries['과일'];
+  if (name.includes('음식') || name.includes('요리')) return topicDictionaries['음식'];
+  if (name.includes('운동') || name.includes('스포츠')) return topicDictionaries['운동'];
+  if (name.includes('교과') || name.includes('수학') || name.includes('과학') || name.includes('사회') || name.includes('국어')) return topicDictionaries['교과'];
+
+  return topicDictionaries['동물'];
+}
+
   // 3. Submit Board Words (Student)
-  socket.on('submitBoard', ({ roomId, name, board }) => {
+  socket.on('submitBoard', ({ roomId, name, board, silent }) => {
     const cleanRoomId = cleanString(roomId);
     const room = rooms[cleanRoomId];
     if (!room) {
@@ -332,17 +386,21 @@ function cleanString(str) {
     player.socketId = socket.id;
 
     player.board = board; // 1D array of length rows * cols
-    player.ready = true;
+    if (!silent) {
+      player.ready = true;
+    }
     
     // Reset stamps just in case
     player.stamped = Array(room.gridSize.rows).fill(null).map(() => Array(room.gridSize.cols).fill(false));
     player.won = false;
 
-    console.log(`Player [${player.name}] submitted board in room ${cleanRoomId}`);
+    console.log(`Player [${player.name}] submitted board in room ${cleanRoomId} (silent: ${!!silent})`);
 
     // Notify room of player list update (ready status changed)
     io.to(cleanRoomId).emit('playersUpdated', getPlayerList(room));
-    socket.emit('boardSubmittedSuccess');
+    if (!silent) {
+      socket.emit('boardSubmittedSuccess');
+    }
   });
 
   // 4. Edit Player Name (Host)
@@ -423,32 +481,37 @@ function cleanString(str) {
     }
 
     const totalCells = room.gridSize.rows * room.gridSize.cols;
-    const defaultSampleWords = [
-      '사과', '바나나', '포도', '딸기', '수박', '참외', '복숭아', '오렌지', '망고', '파인애플',
-      '호랑이', '사자', '코끼리', '기린', '토끼', '다람쥐', '강아지', '고양이', '판다', '펭귄',
-      '한국', '미국', '일본', '중국', '영국', '프랑스', '독일', '캐나다', '호주', '브라질',
-      '축구', '야구', '농구', '배구', '수영', '태권도', '테니스', '골프', '탁구', '볼링'
-    ];
+    const sampleWordsPool = getTopicWords(room.topic);
 
-    // Ensure all players are ready & auto-fill any incomplete board so NO student is ever evicted!
+    // Ensure all players are ready & auto-fill ONLY missing empty cells so NO student's entered word is ever changed!
     allPlayers.forEach(p => {
       p.ready = true;
-      if (!p.board || p.board.length !== totalCells || p.board.some(w => !w || String(w).trim() === '')) {
-        const existingWords = new Set((p.board || []).filter(w => w && String(w).trim() !== ''));
-        const availableSamples = defaultSampleWords.filter(w => !existingWords.has(w));
-        shuffleArray(availableSamples);
-
-        const newBoard = [];
-        for (let i = 0; i < totalCells; i++) {
-          if (p.board && p.board[i] && String(p.board[i]).trim() !== '') {
-            newBoard.push(String(p.board[i]).trim());
-          } else {
-            const sampleWord = availableSamples.pop() || `단어${i + 1}`;
-            newBoard.push(sampleWord);
-          }
-        }
-        p.board = newBoard;
+      if (!p.board || !Array.isArray(p.board)) {
+        p.board = [];
       }
+
+      // Collect existing non-empty words entered by the student
+      const existingWords = new Set();
+      p.board.forEach(w => {
+        if (w && String(w).trim() !== '') {
+          existingWords.add(cleanString(w));
+        }
+      });
+
+      const availableSamples = sampleWordsPool.filter(w => !existingWords.has(cleanString(w)));
+      shuffleArray(availableSamples);
+
+      const newBoard = [];
+      for (let i = 0; i < totalCells; i++) {
+        const cellWord = (p.board && p.board[i]) ? String(p.board[i]).trim() : '';
+        if (cellWord !== '') {
+          newBoard.push(cellWord); // KEEP STUDENT'S ENTERED WORD EXACTLY AS IS!
+        } else {
+          const fillWord = availableSamples.pop() || `단어${i + 1}`;
+          newBoard.push(fillWord);
+        }
+      }
+      p.board = newBoard;
 
       p.stamped = Array(room.gridSize.rows).fill(null).map(() => Array(room.gridSize.cols).fill(false));
       p.won = false;
