@@ -67,6 +67,12 @@
       if (v) v.classList.remove('active');
     });
     viewElement.classList.add('active');
+
+    // Forcibly hide wait overlay whenever game views are shown
+    if (viewElement === views.studentGame || viewElement === views.hostGame) {
+      const waitOverlay = document.getElementById('overlay-wait-start');
+      if (waitOverlay) waitOverlay.classList.remove('active');
+    }
   }
 
   // Calculate local, tunnel, or cloud URL for invite link & QR code
@@ -651,7 +657,9 @@
       });
 
       document.getElementById('display-wait-name').innerText = playerName;
-      document.getElementById('overlay-wait-start').classList.add('active');
+      if (!views.studentGame.classList.contains('active')) {
+        document.getElementById('overlay-wait-start').classList.add('active');
+      }
       SoundEffects.playJoin();
     });
 
