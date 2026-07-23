@@ -685,7 +685,14 @@
   // Render Host Lobby list of students
   function renderHostLobbyPlayers(players) {
     const listContainer = document.getElementById('list-lobby-players');
-    document.getElementById('counter-lobby-players').innerText = players.length;
+    const totalCounter = document.getElementById('counter-lobby-players');
+    const readyCounter = document.getElementById('counter-lobby-ready');
+
+    let readyCount = 0;
+    players.forEach(p => { if (p.ready) readyCount++; });
+
+    if (totalCounter) totalCounter.innerText = players.length;
+    if (readyCounter) readyCounter.innerText = readyCount;
 
     if (players.length === 0) {
       listContainer.innerHTML = `
