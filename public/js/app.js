@@ -328,9 +328,14 @@
         renderHostSpyDashboard(data.players);
         showView(views.hostGame);
       } else {
-        // Collect entered board words from views.studentLobby inputs
-        const cells = document.querySelectorAll('.bingo-input-cell input');
-        boardWords = Array.from(cells).map(input => input.value.trim());
+        // Retrieve my updated board from data.players (handles server auto-filled words!)
+        const myDetails = (data.players || []).find(p => p.name === playerName || cleanString(p.name) === cleanString(playerName));
+        if (myDetails && myDetails.board && myDetails.board.length > 0) {
+          boardWords = myDetails.board;
+        } else {
+          const cells = document.querySelectorAll('.bingo-input-cell input');
+          boardWords = Array.from(cells).map(input => input.value.trim());
+        }
 
         const emptyStamp = Array(gridRows).fill(null).map(() => Array(gridCols).fill(false));
         renderStudentPlayBoard(boardWords, emptyStamp);
@@ -563,19 +568,6 @@
     });
 
     document.getElementById('btn-start-game').addEventListener('click', () => {
-      const readyBadges = document.querySelectorAll('#list-lobby-players .player-card-badge.ready');
-      const totalBadges = document.querySelectorAll('#list-lobby-players .player-card-badge');
-      const readyCount = readyBadges.length;
-      const totalCount = totalBadges.length;
-      const unreadyCount = totalCount - readyCount;
-
-      if (unreadyCount > 0) {
-        const msg = `아직 단어 입력을 마치지 않은 학생이 ${unreadyCount}명 있습니다.\n\n입력 완료한 ${readyCount}명의 학생만으로 빙고 게임을 시작하시겠습니까?\n(미완료 학생은 방에서 제외됩니다)`;
-        if (!confirm(msg)) {
-          return;
-        }
-      }
-
       socket.emit('startGame', { roomId });
     });
 

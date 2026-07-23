@@ -412,7 +412,7 @@ function cleanString(str) {
 
   // 6. Start Game (Host)
   socket.on('startGame', ({ roomId }) => {
-    const cleanRoomId = roomId ? String(roomId).trim() : '';
+    const cleanRoomId = cleanString(roomId);
     const room = rooms[cleanRoomId];
     if (!room || !socket.isHost) return;
 
@@ -422,47 +422,58 @@ function cleanString(str) {
       return;
     }
 
-    const readyPlayers = allPlayers.filter(p => p.ready);
-    if (readyPlayers.length === 0) {
-      socket.emit('errorMsg', '아직 단어 입력을 완료한 학생이 한 명도 없습니다.');
-      return;
-    }
+    const totalCells = room.gridSize.rows * room.gridSize.cols;
+    const defaultSampleWords = [
+      '사과', '바나나', '포도', '딸기', '수박', '참외', '복숭아', '오렌지', '망고', '파인애플',
+      '호랑이', '사자', '코끼리', '기린', '토끼', '다람쥐', '강아지', '고양이', '판다', '펭귄',
+      '한국', '미국', '일본', '중국', '영국', '프랑스', '독일', '캐나다', '호주', '브라질',
+      '축구', '야구', '농구', '배구', '수영', '태권도', '테니스', '골프', '탁구', '볼링'
+    ];
 
-    // Exclude unready players from room
-    const unreadyPlayers = allPlayers.filter(p => !p.ready);
-    if (unreadyPlayers.length > 0) {
-      unreadyPlayers.forEach(p => {
-        const studentSocket = io.sockets.sockets.get(p.socketId);
-        if (studentSocket) {
-          studentSocket.emit('kickedFromRoom');
-          studentSocket.leave(cleanRoomId);
-          studentSocket.roomId = null;
-          studentSocket.playerName = null;
+    // Auto-fill empty cells for any unready/incomplete student so nobody is left out
+    allPlayers.forEach(p => {
+      p.ready = true;
+      if (!p.board || p.board.length !== totalCells || p.board.some(w => !w || w.trim() === '')) {
+        const existingWords = new Set((p.board || []).filter(w => w && w.trim() !== ''));
+        const availableSamples = defaultSampleWords.filter(w => !existingWords.has(w));
+        shuffleArray(availableSamples);
+
+        const newBoard = [];
+        for (let i = 0; i < totalCells; i++) {
+          if (p.board && p.board[i] && p.board[i].trim() !== '') {
+            newBoard.push(p.board[i].trim());
+          } else {
+            const sampleWord = availableSamples.pop() || `단어${i + 1}`;
+            newBoard.push(sampleWord);
+          }
         }
-        delete room.players[p.name];
-      });
-    }
+        p.board = newBoard;
+      }
 
-    const finalPlayers = Object.values(room.players);
+      p.stamped = Array(room.gridSize.rows).fill(null).map(() => Array(room.gridSize.cols).fill(false));
+      p.won = false;
+    });
+
     room.status = 'playing';
     room.drawnWords = [];
     room.winners = [];
-    
-    finalPlayers.forEach(p => {
-      p.won = false;
-      p.stamped = Array(room.gridSize.rows).fill(null).map(() => Array(room.gridSize.cols).fill(false));
-    });
 
-    const names = finalPlayers.map(p => p.name);
+    const names = allPlayers.map(p => p.name);
     room.turnSequence = shuffleArray(names);
     room.turnIndex = 0;
 
-    console.log(`Game started in room ${cleanRoomId} with ${names.length} ready players. Turn sequence:`, room.turnSequence);
+    console.log(`Game started in room ${cleanRoomId} with ${allPlayers.length} players. Turn sequence:`, room.turnSequence);
 
     io.to(cleanRoomId).emit('gameStarted', {
       status: room.status,
       activeTurnPlayer: room.turnSequence[0],
       turnSequence: room.turnSequence,
+      settings: {
+        topic: room.topic,
+        gridSize: room.gridSize,
+        targetBingo: room.targetBingo,
+        status: room.status
+      },
       players: getPlayerList(room)
     });
   });
