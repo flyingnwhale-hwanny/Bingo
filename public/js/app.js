@@ -712,7 +712,6 @@
       pCard.className = `player-card-badge ${player.ready ? 'ready' : ''}`;
       
       const statusText = player.ready ? '입력 완료 ✅' : '단어 입력 중 ✍️';
-      if (player.ready) readyCount++;
 
       pCard.innerHTML = `
         <div class="player-badge-header">
