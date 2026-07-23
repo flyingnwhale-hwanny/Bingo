@@ -205,6 +205,9 @@
       gridRows = settings.gridSize.rows;
       gridCols = settings.gridSize.cols;
       targetBingo = settings.targetBingo;
+      fillMode = settings.fillMode || 'pool';
+      wordPool = settings.wordPool || [];
+      hostRole = settings.hostRole || 'spectator';
 
       document.getElementById('display-host-room-id').innerText = roomId;
       document.getElementById('label-host-lobby-topic').innerText = topic;
