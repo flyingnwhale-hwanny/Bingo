@@ -157,15 +157,27 @@
     // 0. Auto Rejoin on Connection / Reconnection (for mobile screen wake/Wi-Fi jitter)
     socket.on('connect', () => {
       console.log('Socket connected/reconnected:', socket.id);
-      if (roomId && currentRole === 'student' && playerName) {
-        socket.emit('joinRoom', { roomId, name: playerName, role: 'student' });
-      } else if (roomId && currentRole === 'host') {
-        socket.emit('joinRoom', { roomId, role: 'host' });
+      const isViewingActiveRoom = views.studentLobby.classList.contains('active') || 
+                                  views.studentGame.classList.contains('active') || 
+                                  views.hostLobby.classList.contains('active') || 
+                                  views.hostGame.classList.contains('active');
+      if (roomId && isViewingActiveRoom) {
+        if (currentRole === 'student' && playerName) {
+          socket.emit('joinRoom', { roomId, name: playerName, role: 'student' });
+        } else if (currentRole === 'host') {
+          socket.emit('joinRoom', { roomId, role: 'host' });
+        }
       }
     });
 
     // 1. Error receiver
     socket.on('errorMsg', (msg) => {
+      if (msg.includes('방이 존재하지 않습니다')) {
+        roomId = null;
+        alert('서버가 업데이트되었거나 방이 종료되었습니다. [새 방 만들기] 버튼을 눌러 새로 시작해 주세요.');
+        showView(views.home);
+        return;
+      }
       alert(`⚠️ 안내: ${msg}`);
     });
 
