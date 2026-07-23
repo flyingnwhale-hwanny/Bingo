@@ -735,65 +735,89 @@
     });
 
     // --- Student Lobby View Actions ---
-    document.getElementById('btn-fill-random').addEventListener('click', () => {
-      fillRandomWords();
-    });
-
-    document.getElementById('btn-clear-all').addEventListener('click', () => {
-      clearAllWords();
-    });
-
-    document.getElementById('btn-submit-board').addEventListener('click', () => {
-      const inputs = document.querySelectorAll('.bingo-input-cell input');
-      const words = Array.from(inputs).map(inp => inp.value.trim());
-
-      // Validate empty cells
-      if (words.some(w => w === '')) {
-        alert('빈칸이 있습니다! 모든 칸에 단어를 채워 넣어주세요.');
-        return;
-      }
-
-      // Check duplicates
-      const uniques = new Set(words);
-      if (uniques.size !== words.length) {
-        alert('중복된 단어가 있습니다! 서로 다른 단어들을 입력해 주세요.');
-        return;
-      }
-
-      boardWords = words.map(w => w.normalize('NFC'));
-      socket.emit('submitBoard', {
-        roomId,
-        name: playerName ? playerName.normalize('NFC') : '',
-        board: boardWords
+    const btnFillRandom = document.getElementById('btn-fill-random');
+    if (btnFillRandom) {
+      btnFillRandom.addEventListener('click', () => {
+        fillRandomWords();
       });
+    }
 
-      document.getElementById('display-wait-name').innerText = playerName;
-      if (!views.studentGame.classList.contains('active')) {
-        document.getElementById('overlay-wait-start').classList.add('active');
-      }
-      SoundEffects.playJoin();
-    });
+    const btnClearAll = document.getElementById('btn-clear-all');
+    if (btnClearAll) {
+      btnClearAll.addEventListener('click', () => {
+        clearAllWords();
+      });
+    }
 
-    document.getElementById('btn-edit-board').addEventListener('click', () => {
-      document.getElementById('overlay-wait-start').classList.remove('active');
-      SoundEffects.playClick();
-    });
+    const btnSubmitBoard = document.getElementById('btn-submit-board');
+    if (btnSubmitBoard) {
+      btnSubmitBoard.addEventListener('click', () => {
+        const inputs = document.querySelectorAll('.bingo-input-cell input');
+        const words = Array.from(inputs).map(inp => inp.value.trim());
+
+        // Validate empty cells
+        if (words.some(w => w === '')) {
+          alert('빈칸이 있습니다! 모든 칸에 단어를 채워 넣어주세요.');
+          return;
+        }
+
+        // Check duplicates
+        const uniques = new Set(words);
+        if (uniques.size !== words.length) {
+          alert('중복된 단어가 있습니다! 서로 다른 단어들을 입력해 주세요.');
+          return;
+        }
+
+        boardWords = words.map(w => w.normalize('NFC'));
+        socket.emit('submitBoard', {
+          roomId,
+          name: playerName ? playerName.normalize('NFC') : '',
+          board: boardWords
+        });
+
+        const dispWaitName = document.getElementById('display-wait-name');
+        if (dispWaitName) dispWaitName.innerText = playerName;
+        const waitOverlay = document.getElementById('overlay-wait-start');
+        if (waitOverlay && !views.studentGame.classList.contains('active')) {
+          waitOverlay.classList.add('active');
+        }
+        SoundEffects.playJoin();
+      });
+    }
+
+    const btnEditBoard = document.getElementById('btn-edit-board');
+    if (btnEditBoard) {
+      btnEditBoard.addEventListener('click', () => {
+        const waitOverlay = document.getElementById('overlay-wait-start');
+        if (waitOverlay) waitOverlay.classList.remove('active');
+        SoundEffects.playClick();
+      });
+    }
 
     // --- Host Game Dashboard View Actions ---
-    document.getElementById('btn-host-end-game').addEventListener('click', () => {
-      if (confirm('정말로 게임을 종료하시겠습니까? 현재까지의 데이터가 전부 초기화됩니다.')) {
-        socket.emit('endGame', { roomId });
-      }
-    });
+    const btnHostEndGame = document.getElementById('btn-host-end-game');
+    if (btnHostEndGame) {
+      btnHostEndGame.addEventListener('click', () => {
+        if (confirm('정말로 게임을 종료하시겠습니까? 현재까지의 데이터가 전부 초기화됩니다.')) {
+          socket.emit('endGame', { roomId });
+        }
+      });
+    }
 
     // --- Victory Modal Actions (Host buttons) ---
-    document.getElementById('btn-victory-continue').addEventListener('click', () => {
-      socket.emit('continueGame', { roomId });
-    });
+    const btnVictoryContinue = document.getElementById('btn-victory-continue');
+    if (btnVictoryContinue) {
+      btnVictoryContinue.addEventListener('click', () => {
+        socket.emit('continueGame', { roomId });
+      });
+    }
 
-    document.getElementById('btn-victory-end').addEventListener('click', () => {
-      socket.emit('endGame', { roomId });
-    });
+    const btnVictoryEnd = document.getElementById('btn-victory-end');
+    if (btnVictoryEnd) {
+      btnVictoryEnd.addEventListener('click', () => {
+        socket.emit('endGame', { roomId });
+      });
+    }
   }
 
   // Parse URL query parameter: e.g. /?room=1234
