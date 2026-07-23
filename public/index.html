@@ -92,6 +92,29 @@
           </div>
         </div>
 
+        <div class="form-group">
+          <label>⚙️ 빙고 단어 채우기 방식 선택</label>
+          <div class="mode-select-group">
+            <button type="button" id="btn-mode-pool" class="btn-mode-select active">
+              📋 보기에서 채우기 (목록 드래그)
+            </button>
+            <button type="button" id="btn-mode-direct" class="btn-mode-select">
+              ✍️ 직접 채우기 (학생 직접 입력)
+            </button>
+          </div>
+        </div>
+
+        <!-- Word Pool Input Group (Shown when '보기에서 채우기' is active) -->
+        <div id="group-word-pool" class="form-group animate-fade-in">
+          <label for="input-word-pool">
+            📋 보기 단어 목록 <span class="label-sub">(쉼표 , 로 구분하여 최소 <strong id="label-min-pool-count">25</strong>개 이상 입력)</span>
+          </label>
+          <textarea id="input-word-pool" rows="4" placeholder="예) 미국, 캐나다, 브라질, 아르헨티나, 멕시코, 칠레, 페루, 쿠바, 우루과이, 파라과이, 베네수엘라, 에콰도르, 볼리비아, 파나마, 코스타리카, 과테말라, 온두라스, 엘살바도르, 니카라과, 자메이카, 하이티, 벨리즈, 바하마, 칠레, 페루"></textarea>
+          <div class="pool-count-info">
+            <span>입력된 단어 수: <strong id="counter-pool-entered">0</strong>개</span>
+          </div>
+        </div>
+
         <div class="grid-preview-container">
           <span class="preview-label">빙고판 미리보기</span>
           <div id="grid-preview" class="grid-preview size-5">
@@ -109,89 +132,82 @@
     <section id="view-student-join" class="view-section">
       <div class="card join-card animate-slide-up">
         <button class="btn-back" id="btn-join-back">⬅️ 뒤로가기</button>
-        <h2 class="section-title">🎒 빙고 게임 참가</h2>
-        
+        <h2 class="section-title">🎒 방 입장하기</h2>
         <div class="form-group">
-          <label for="input-room-code">🔑 방 번호 (4자리 숫자)</label>
-          <input type="number" id="input-room-code" placeholder="예) 1234" pattern="\d*">
+          <label for="input-room-code">🔑 방 번호 (4자리)</label>
+          <input type="number" id="input-room-code" placeholder="예) 1234" pattern="[0-9]*">
         </div>
-        
         <button id="btn-find-room" class="btn btn-primary btn-block">
-          다음 단계로 ➡️
+          다음 단계 ➡️
         </button>
       </div>
     </section>
 
     <!-- 4. STUDENT NAME REGISTRATION VIEW -->
     <section id="view-student-name" class="view-section">
-      <div class="card name-card animate-slide-up">
-        <h2 class="section-title">👋 본인의 이름을 입력해 주세요</h2>
-        <p class="subtitle" id="label-join-room-info"></p>
-        
+      <div class="card join-card animate-slide-up">
+        <h2 class="section-title">👤 학생 이름 입력</h2>
+        <p class="section-subtitle" id="label-join-room-info">방 번호: [0000]</p>
         <div class="form-group">
-          <label for="input-student-name">🧑‍🎓 이름</label>
+          <label for="input-student-name">이름을 입력하세요</label>
           <input type="text" id="input-student-name" placeholder="예) 홍길동" maxlength="10">
         </div>
-        
-        <button id="btn-submit-name" class="btn btn-accent btn-block">
-          입장하기 🐾
+        <button id="btn-submit-name" class="btn btn-accent btn-block btn-pulse">
+          빙고 대기실 입장 🚀
         </button>
       </div>
     </section>
 
     <!-- 5. HOST LOBBY VIEW -->
     <section id="view-host-lobby" class="view-section">
-      <div class="lobby-layout">
-        <!-- Left Side: Room Info, Link, QR -->
-        <div class="card lobby-info-card animate-slide-right">
-          <h2 class="room-code-title">방 개설 완료!</h2>
+      <div class="host-lobby-layout">
+        <!-- Room Control & QR Code Panel -->
+        <div class="card host-info-card animate-slide-right">
+          <div class="host-header">
+            <span class="role-badge">선생님(호스트) 화면</span>
+            <h2 id="label-host-lobby-topic" class="topic-title">주제: 동물 이름</h2>
+          </div>
           
-          <div class="code-box-container">
-            <span class="code-label">방 번호</span>
-            <div class="code-number-display" id="display-host-room-id">0000</div>
+          <div class="room-code-display-box">
+            <span class="code-label">참가 코드</span>
+            <div class="room-code-badge" id="display-host-room-id">0000</div>
           </div>
 
-          <div class="invite-link-container">
-            <label>🔗 초대 링크</label>
-            <div class="copy-input-group">
-              <input type="text" id="input-invite-link" readonly value="">
-              <button id="btn-copy-link" class="btn btn-secondary btn-sm">복사</button>
-            </div>
+          <div class="settings-summary">
+            <span>크기: <strong id="label-host-lobby-size">5x5</strong></span>
+            <span>목표: <strong id="label-host-lobby-target">2줄</strong></span>
           </div>
 
+          <!-- QR Code Container -->
           <div class="qr-container">
-            <label>📱 QR 코드로 간편 입장</label>
-            <div id="qr-code-canvas" class="qr-canvas">
-              <!-- QR Code Canvas Rendered Here -->
-            </div>
-            <p class="qr-desc">학생들이 카메라로 스캔하여 참여할 수 있습니다.</p>
+            <div id="qr-code-canvas"></div>
+            <p class="qr-hint">📱 학생들은 스마트폰 카메라로 QR 코드를 스캔하세요!</p>
+          </div>
+
+          <!-- Direct Link Copy -->
+          <div class="invite-link-box">
+            <input type="text" id="input-invite-link" readonly value="http://localhost:3000">
+            <button id="btn-copy-link" class="btn btn-secondary btn-sm">복사</button>
           </div>
         </div>
 
-        <!-- Right Side: Connected Players & Setup Stats -->
-        <div class="card lobby-players-card animate-slide-left">
-          <div class="lobby-stats-header">
-            <div>
-              <h3>주제: <span id="label-host-lobby-topic" class="highlight-text">동물</span></h3>
-              <p class="lobby-setting-sub">빙고 크기: <span id="label-host-lobby-size">5x5</span> | 목표: <span id="label-host-lobby-target">2줄</span></p>
-            </div>
-            <div class="counter-badge">
-              참가 학생: <span id="counter-lobby-players">0</span>명 (완료: <span id="counter-lobby-ready" class="highlight-text">0</span>명)
-            </div>
+        <!-- Student List & Start Game Panel -->
+        <div class="card host-players-card animate-slide-left">
+          <div class="players-header">
+            <h3>👥 참여 학생 목록 (<span id="counter-lobby-players" class="highlight-text">0</span>명 / 완료: <span id="counter-lobby-ready" class="highlight-text">0</span>명)</h3>
           </div>
-
-          <div class="player-list-wrapper">
-            <h4 class="list-heading">🐾 참여 학생 목록</h4>
-            <div class="player-grid-list" id="list-lobby-players">
-              <!-- Empty state illustrated via JS if 0 players -->
+          
+          <div id="list-lobby-players" class="players-grid-container">
+            <!-- Dynamic Joined Student Badges -->
+            <div class="empty-players-placeholder">
+              학생들이 코드를 입력하거나 QR코드를 스캔하여 입장하고 있습니다... 🐾
             </div>
           </div>
 
           <div class="lobby-action-box">
             <button id="btn-start-game" class="btn btn-accent btn-block btn-large btn-pulse" disabled>
-              🎲 빙고 시작 (0명 준비됨)
+              🎲 빙고 시작
             </button>
-            <p class="action-hint">모든 학생이 단어 입력을 완료하면 시작할 수 있습니다.</p>
           </div>
         </div>
       </div>
@@ -212,10 +228,26 @@
         </div>
 
         <div class="board-instruction-box">
-          <p class="instruction-text">💡 아래의 빈칸들을 터치하거나 클릭하여 <strong>주제와 관련된 단어</strong>를 채워 넣으세요!</p>
-          <div class="btn-group-sm">
-            <button id="btn-fill-random" class="btn btn-secondary btn-sm">🎲 무작위 채우기</button>
+          <div class="mode-status-container">
+            <!-- Read-only Mode Badge (Disabled button style for status confirmation) -->
+            <button id="badge-fill-mode" class="btn btn-mode-disabled" disabled>
+              📋 보기에서 채우기 모드
+            </button>
             <button id="btn-clear-all" class="btn btn-danger-outline btn-sm">🧹 전부 비우기</button>
+          </div>
+          <p id="label-student-instruction" class="instruction-text">
+            💡 보기에 있는 단어를 원하는 칸으로 <strong>드래그</strong>하거나 <strong>터치</strong>해서 채워 넣으세요!
+          </p>
+        </div>
+
+        <!-- Word Pool Tray (Visible when fillMode === 'pool') -->
+        <div id="container-word-pool-tray" class="word-pool-tray-container">
+          <div class="pool-tray-header">
+            <span>📋 선택 가능한 보기 단어 목록</span>
+            <span class="pool-tray-hint">(단어를 드래그하거나 터치하여 원하는 칸에 채우세요)</span>
+          </div>
+          <div id="list-word-pool-chips" class="word-pool-chips-grid">
+            <!-- Dynamic Word Chips -->
           </div>
         </div>
 

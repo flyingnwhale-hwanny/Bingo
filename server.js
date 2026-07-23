@@ -135,12 +135,16 @@ io.on('connection', (socket) => {
   console.log(`New client connected: ${socket.id}`);
 
   // 1. Create Room (Host)
-  socket.on('createRoom', ({ topic, rows, cols, targetBingo }) => {
+  socket.on('createRoom', ({ topic, rows, cols, targetBingo, fillMode, wordPool }) => {
     // Generate a unique 4-digit room code
     let roomId;
     do {
       roomId = Math.floor(1000 + Math.random() * 9000).toString();
     } while (rooms[roomId]);
+
+    const cleanWordPool = Array.isArray(wordPool) 
+      ? wordPool.map(w => cleanString(w)).filter(Boolean) 
+      : [];
 
     rooms[roomId] = {
       id: roomId,
@@ -150,6 +154,8 @@ io.on('connection', (socket) => {
         cols: parseInt(cols) || 5
       },
       targetBingo: parseInt(targetBingo) || 2,
+      fillMode: fillMode === 'direct' ? 'direct' : 'pool',
+      wordPool: cleanWordPool,
       hostSocketId: socket.id,
       players: {},
       status: 'lobby', // lobby, playing, finished
@@ -164,7 +170,7 @@ io.on('connection', (socket) => {
     socket.roomId = roomId;
     socket.isHost = true;
 
-    console.log(`Room created: ${roomId} by host socket ${socket.id}`);
+    console.log(`Room created: ${roomId} by host socket ${socket.id} (mode: ${rooms[roomId].fillMode}, pool count: ${cleanWordPool.length})`);
     
     socket.emit('roomCreated', {
       roomId,
@@ -203,6 +209,8 @@ function cleanString(str) {
           topic: room.topic,
           gridSize: room.gridSize,
           targetBingo: room.targetBingo,
+          fillMode: room.fillMode,
+          wordPool: room.wordPool,
           status: room.status
         },
         players: getPlayerList(room),
@@ -244,6 +252,8 @@ function cleanString(str) {
           topic: room.topic,
           gridSize: room.gridSize,
           targetBingo: room.targetBingo,
+          fillMode: room.fillMode,
+          wordPool: room.wordPool,
           status: room.status
         },
         board: existingPlayer.board,
@@ -280,6 +290,8 @@ function cleanString(str) {
           topic: room.topic,
           gridSize: room.gridSize,
           targetBingo: room.targetBingo,
+          fillMode: room.fillMode,
+          wordPool: room.wordPool,
           status: room.status
         },
         board: [],
@@ -481,7 +493,9 @@ function getTopicWords(topicName) {
     }
 
     const totalCells = room.gridSize.rows * room.gridSize.cols;
-    const sampleWordsPool = getTopicWords(room.topic);
+    const sampleWordsPool = (room.fillMode === 'pool' && room.wordPool && room.wordPool.length > 0)
+      ? room.wordPool
+      : getTopicWords(room.topic);
 
     // Ensure all players are ready & auto-fill ONLY missing empty cells so NO student's entered word is ever changed!
     allPlayers.forEach(p => {

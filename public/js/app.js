@@ -8,9 +8,11 @@
   let playerName = null;
   let gridRows = 5;
   let gridCols = 5;
-  let targetBingo = 2;
-  let topic = '동물 이름';
-  
+  let fillMode = 'pool'; // 'pool' or 'direct'
+  let wordPool = []; // Array of parsed word strings
+  let selectedFillMode = 'pool'; // Host setup selection
+  let selectedPoolChipWord = null; // Currently clicked word chip for touch placement
+
   let boardWords = []; // 1D array of length rows * cols
   let drawnWords = [];
   let activeTurnPlayer = null;
@@ -254,6 +256,8 @@
       gridRows = data.settings.gridSize.rows;
       gridCols = data.settings.gridSize.cols;
       targetBingo = data.settings.targetBingo;
+      fillMode = data.settings.fillMode || 'pool';
+      wordPool = data.settings.wordPool || [];
       drawnWords = data.drawnWords || [];
 
       if (data.role === 'host') {
@@ -291,6 +295,21 @@
         document.getElementById('display-student-game-topic').innerText = `주제: ${topic}`;
         document.getElementById('label-student-game-target').innerText = targetBingo;
 
+        // Render Mode Status Badge & Word Pool Tray for Student Lobby
+        const badgeFillMode = document.getElementById('badge-fill-mode');
+        const containerPoolTray = document.getElementById('container-word-pool-tray');
+        const labelInstruction = document.getElementById('label-student-instruction');
+
+        if (fillMode === 'pool') {
+          if (badgeFillMode) badgeFillMode.innerText = '📋 보기에서 채우기 모드';
+          if (containerPoolTray) containerPoolTray.style.display = 'block';
+          if (labelInstruction) labelInstruction.innerHTML = '💡 보기에 있는 단어를 원하는 칸으로 <strong>드래그</strong>하거나 <strong>터치</strong>해서 채워 넣으세요!';
+        } else {
+          if (badgeFillMode) badgeFillMode.innerText = '✍️ 직접 채우기 모드';
+          if (containerPoolTray) containerPoolTray.style.display = 'none';
+          if (labelInstruction) labelInstruction.innerHTML = '💡 아래의 빈칸들을 터치하거나 클릭하여 <strong>주제와 관련된 단어</strong>를 직접 채워 넣으세요!';
+        }
+
         if (data.settings.status === 'playing' || data.settings.status === 'finished') {
           // Game already running! Show studentGame view immediately!
           const waitOverlay = document.getElementById('overlay-wait-start');
@@ -322,6 +341,7 @@
             cells.forEach((cell, idx) => {
               if (data.board[idx]) cell.value = data.board[idx];
             });
+            if (fillMode === 'pool') renderWordPoolChips();
           }
           showView(views.studentLobby);
         }
@@ -535,6 +555,43 @@
 
     const colsInput = document.getElementById('input-grid-cols');
     const rowsInput = document.getElementById('input-grid-rows');
+    const btnModePool = document.getElementById('btn-mode-pool');
+    const btnModeDirect = document.getElementById('btn-mode-direct');
+    const groupWordPool = document.getElementById('group-word-pool');
+    const inputWordPool = document.getElementById('input-word-pool');
+    const labelMinPoolCount = document.getElementById('label-min-pool-count');
+    const counterPoolEntered = document.getElementById('counter-pool-entered');
+
+    function updateWordPoolCounter() {
+      if (!inputWordPool) return;
+      const rawText = inputWordPool.value || '';
+      const parsed = rawText.split(/[,|\n]/).map(w => w.trim()).filter(Boolean);
+      if (counterPoolEntered) {
+        counterPoolEntered.innerText = parsed.length;
+      }
+    }
+
+    if (btnModePool && btnModeDirect) {
+      btnModePool.addEventListener('click', () => {
+        selectedFillMode = 'pool';
+        btnModePool.classList.add('active');
+        btnModeDirect.classList.remove('active');
+        if (groupWordPool) groupWordPool.style.display = 'block';
+        SoundEffects.playClick();
+      });
+
+      btnModeDirect.addEventListener('click', () => {
+        selectedFillMode = 'direct';
+        btnModeDirect.classList.add('active');
+        btnModePool.classList.remove('active');
+        if (groupWordPool) groupWordPool.style.display = 'none';
+        SoundEffects.playClick();
+      });
+    }
+
+    if (inputWordPool) {
+      inputWordPool.addEventListener('input', updateWordPoolCounter);
+    }
 
     function updateGridSetup() {
       let cols = parseInt(colsInput.value);
@@ -549,7 +606,11 @@
 
       gridCols = cols;
       gridRows = rows;
+      if (labelMinPoolCount) {
+        labelMinPoolCount.innerText = cols * rows;
+      }
       renderSetupPreview();
+      updateWordPoolCounter();
     }
 
     colsInput.addEventListener('input', updateGridSetup);
@@ -575,6 +636,18 @@
         document.getElementById('input-target-bingo').value = target;
       }
 
+      let parsedPool = [];
+      if (selectedFillMode === 'pool') {
+        const rawPoolText = document.getElementById('input-word-pool').value || '';
+        parsedPool = rawPoolText.split(/[,|\n]/).map(w => w.trim().normalize('NFC')).filter(Boolean);
+        const minRequired = cols * rows;
+        if (parsedPool.length < minRequired) {
+          alert(`보기 단어가 부족합니다!\n\n현재 빙고판 크기(${cols}x${rows})에 맞춰 최소 ${minRequired}개 이상의 단어를 쉼표(,)로 구분해 입력해 주세요.\n(현재 입력된 단어: ${parsedPool.length}개)`);
+          document.getElementById('input-word-pool').focus();
+          return;
+        }
+      }
+
       if (!socket || !socket.connected) {
         if (typeof io !== 'undefined') {
           socket = io();
@@ -587,7 +660,9 @@
         topic: topicInput || '자유 주제',
         rows: rows,
         cols: cols,
-        targetBingo: target
+        targetBingo: target,
+        fillMode: selectedFillMode,
+        wordPool: parsedPool
       });
     });
 
@@ -864,6 +939,54 @@
     }
   }
 
+  // Render Word Pool Chips for Drag & Drop / Touch Selection
+  function renderWordPoolChips() {
+    const poolGrid = document.getElementById('list-word-pool-chips');
+    if (!poolGrid) return;
+    poolGrid.innerHTML = '';
+
+    const currentPlacedWords = new Set();
+    document.querySelectorAll('.bingo-input-cell input').forEach(input => {
+      const val = input.value.trim().normalize('NFC');
+      if (val !== '') currentPlacedWords.add(val);
+    });
+
+    wordPool.forEach((word) => {
+      const chip = document.createElement('div');
+      const isPlaced = currentPlacedWords.has(word.normalize('NFC'));
+
+      chip.className = `word-chip ${isPlaced ? 'placed' : ''} ${selectedPoolChipWord === word ? 'selected' : ''}`;
+      chip.innerText = word;
+      chip.dataset.word = word;
+      chip.draggable = !isPlaced;
+
+      if (!isPlaced) {
+        // HTML5 Drag Events
+        chip.addEventListener('dragstart', (e) => {
+          e.dataTransfer.setData('text/plain', word);
+          chip.classList.add('dragging');
+        });
+
+        chip.addEventListener('dragend', () => {
+          chip.classList.remove('dragging');
+        });
+
+        // Touch/Click Selection Event
+        chip.addEventListener('click', () => {
+          if (selectedPoolChipWord === word) {
+            selectedPoolChipWord = null;
+          } else {
+            selectedPoolChipWord = word;
+          }
+          renderWordPoolChips();
+          SoundEffects.playClick();
+        });
+      }
+
+      poolGrid.appendChild(chip);
+    });
+  }
+
   // Render student input board view
   function renderStudentInputGrid(rows, cols) {
     const gridContainer = document.getElementById('grid-student-input');
@@ -883,6 +1006,65 @@
       input.placeholder = `단어 ${i + 1}`;
       input.id = `input-cell-${i}`;
       
+      if (fillMode === 'pool') {
+        input.readOnly = true;
+      } else {
+        input.readOnly = false;
+      }
+
+      // Cell Click / Touch placement logic for Pool Mode
+      cell.addEventListener('click', () => {
+        if (fillMode === 'pool') {
+          if (selectedPoolChipWord) {
+            input.value = selectedPoolChipWord;
+            selectedPoolChipWord = null;
+            renderWordPoolChips();
+            autoSyncStudentBoard();
+            SoundEffects.playClick();
+          } else if (input.value.trim() !== '') {
+            // Click to clear cell
+            input.value = '';
+            renderWordPoolChips();
+            autoSyncStudentBoard();
+            SoundEffects.playClick();
+          }
+        }
+      });
+
+      // HTML5 Drag & Drop Target Handlers for Pool Mode
+      cell.addEventListener('dragover', (e) => {
+        if (fillMode === 'pool') {
+          e.preventDefault();
+          cell.classList.add('drag-over');
+        }
+      });
+
+      cell.addEventListener('dragenter', (e) => {
+        if (fillMode === 'pool') {
+          e.preventDefault();
+          cell.classList.add('drag-over');
+        }
+      });
+
+      cell.addEventListener('dragleave', () => {
+        cell.classList.remove('drag-over');
+      });
+
+      cell.addEventListener('drop', (e) => {
+        if (fillMode === 'pool') {
+          e.preventDefault();
+          cell.classList.remove('drag-over');
+          const droppedWord = e.dataTransfer.getData('text/plain');
+          if (droppedWord && droppedWord.trim() !== '') {
+            input.value = droppedWord.trim().normalize('NFC');
+            selectedPoolChipWord = null;
+            renderWordPoolChips();
+            autoSyncStudentBoard();
+            SoundEffects.playStamp();
+          }
+        }
+      });
+
       // Auto tab movement helper & live auto sync
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
@@ -904,42 +1086,20 @@
       cell.appendChild(input);
       gridContainer.appendChild(cell);
     }
-  }
 
-  // Auto fill dictionary words
-  function fillRandomWords() {
-    let pool = wordDictionary[topic];
-    if (!pool) {
-      const topicLower = String(topic).toLowerCase();
-      if (topicLower.includes('나라') || topicLower.includes('대륙') || topicLower.includes('국가') || topicLower.includes('아메리카') || topicLower.includes('아시아') || topicLower.includes('유럽')) {
-        pool = wordDictionary['나라 이름'];
-      } else if (topicLower.includes('영어')) {
-        pool = wordDictionary['영어 단어'];
-      } else if (topicLower.includes('교과')) {
-        pool = wordDictionary['교과 단어'];
-      } else {
-        pool = wordDictionary['동물 이름'];
-      }
+    if (fillMode === 'pool') {
+      renderWordPoolChips();
     }
-    if (pool.length < gridRows * gridCols) {
-      pool = Array.from({ length: 40 }, (_, idx) => `단어${idx + 1}`);
-    }
-    
-    // Shuffle pool
-    const shuffled = [...pool].sort(() => 0.5 - Math.random());
-    
-    const inputs = document.querySelectorAll('.bingo-input-cell input');
-    inputs.forEach((input, index) => {
-      input.value = shuffled[index] || `단어${index + 1}`;
-    });
-    autoSyncStudentBoard();
-    SoundEffects.playClick();
   }
 
   // Clear student inputs
   function clearAllWords() {
     const inputs = document.querySelectorAll('.bingo-input-cell input');
     inputs.forEach(input => { input.value = ''; });
+    selectedPoolChipWord = null;
+    if (fillMode === 'pool') {
+      renderWordPoolChips();
+    }
     autoSyncStudentBoard();
     SoundEffects.playClick();
   }
