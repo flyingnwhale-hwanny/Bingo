@@ -422,41 +422,47 @@ function cleanString(str) {
       return;
     }
 
-    // Filter only READY players (who pressed '입력 완료')
-    const readyPlayers = allPlayers.filter(p => p.ready);
-    if (readyPlayers.length === 0) {
-      socket.emit('errorMsg', '아직 단어 입력을 완료한 학생이 한 명도 없습니다.');
-      return;
-    }
+    const totalCells = room.gridSize.rows * room.gridSize.cols;
+    const defaultSampleWords = [
+      '사과', '바나나', '포도', '딸기', '수박', '참외', '복숭아', '오렌지', '망고', '파인애플',
+      '호랑이', '사자', '코끼리', '기린', '토끼', '다람쥐', '강아지', '고양이', '판다', '펭귄',
+      '한국', '미국', '일본', '중국', '영국', '프랑스', '독일', '캐나다', '호주', '브라질',
+      '축구', '야구', '농구', '배구', '수영', '태권도', '테니스', '골프', '탁구', '볼링'
+    ];
 
-    // Evict unready players from the room so they don't get turns or block game progress
-    const unreadyPlayers = allPlayers.filter(p => !p.ready);
-    unreadyPlayers.forEach(p => {
-      const studentSocket = io.sockets.sockets.get(p.socketId);
-      if (studentSocket) {
-        studentSocket.emit('kickedFromRoom');
-        studentSocket.leave(cleanRoomId);
-        studentSocket.roomId = null;
-        studentSocket.playerName = null;
+    // Ensure all players are ready & auto-fill any incomplete board so NO student is ever evicted!
+    allPlayers.forEach(p => {
+      p.ready = true;
+      if (!p.board || p.board.length !== totalCells || p.board.some(w => !w || String(w).trim() === '')) {
+        const existingWords = new Set((p.board || []).filter(w => w && String(w).trim() !== ''));
+        const availableSamples = defaultSampleWords.filter(w => !existingWords.has(w));
+        shuffleArray(availableSamples);
+
+        const newBoard = [];
+        for (let i = 0; i < totalCells; i++) {
+          if (p.board && p.board[i] && String(p.board[i]).trim() !== '') {
+            newBoard.push(String(p.board[i]).trim());
+          } else {
+            const sampleWord = availableSamples.pop() || `단어${i + 1}`;
+            newBoard.push(sampleWord);
+          }
+        }
+        p.board = newBoard;
       }
-      delete room.players[p.name];
+
+      p.stamped = Array(room.gridSize.rows).fill(null).map(() => Array(room.gridSize.cols).fill(false));
+      p.won = false;
     });
 
-    const activePlayers = Object.values(room.players);
     room.status = 'playing';
     room.drawnWords = [];
     room.winners = [];
 
-    activePlayers.forEach(p => {
-      p.won = false;
-      p.stamped = Array(room.gridSize.rows).fill(null).map(() => Array(room.gridSize.cols).fill(false));
-    });
-
-    const names = activePlayers.map(p => p.name);
+    const names = allPlayers.map(p => p.name);
     room.turnSequence = shuffleArray(names);
     room.turnIndex = 0;
 
-    console.log(`Game started in room ${cleanRoomId} with ${names.length} READY players. Turn sequence:`, room.turnSequence);
+    console.log(`Game started in room ${cleanRoomId} with ALL ${allPlayers.length} players. Turn sequence:`, room.turnSequence);
 
     io.to(cleanRoomId).emit('gameStarted', {
       status: room.status,

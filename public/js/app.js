@@ -602,13 +602,13 @@
       const totalCount = totalBadges.length;
       const unreadyCount = totalCount - readyCount;
 
-      if (readyCount === 0) {
-        alert('아직 단어 입력을 마치고 [입력 완료] 한 학생이 없습니다.');
+      if (totalCount === 0) {
+        alert('참가한 학생이 없습니다.');
         return;
       }
 
       if (unreadyCount > 0) {
-        const msg = `아직 단어 입력을 마치지 않은 학생이 ${unreadyCount}명 있습니다.\n\n입력 완료한 ${readyCount}명의 학생만으로 빙고 게임을 시작하시겠습니까?\n(미완료 학생은 차례 지정을 받지 않도록 이번 게임에서 제외됩니다)`;
+        const msg = `아직 단어 입력을 마치지 않은 학생이 ${unreadyCount}명 있습니다.\n\n게임을 바로 시작하시겠습니까?\n(미입력 빈칸은 샘플 단어로 자동 채워져 참가한 학생 전원이 즐겁게 함께 참여합니다!)`;
         if (!confirm(msg)) {
           return;
         }
