@@ -594,6 +594,20 @@
       showView(views.home);
     });
 
+    const btnHostLobbyBack = document.getElementById('btn-host-lobby-back');
+    if (btnHostLobbyBack) {
+      btnHostLobbyBack.addEventListener('click', () => {
+        if (confirm('설정 화면으로 돌아가시겠습니까? 현재 방이 폭파되고 설정 화면으로 이동합니다.')) {
+          if (socket && socket.connected && roomId) {
+            socket.emit('endGame', { roomId });
+          }
+          resetLocalState();
+          showView(views.setup);
+          SoundEffects.playClick();
+        }
+      });
+    }
+
     const colsInput = document.getElementById('input-grid-cols');
     const rowsInput = document.getElementById('input-grid-rows');
     const btnModePool = document.getElementById('btn-mode-pool');
