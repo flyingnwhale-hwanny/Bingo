@@ -234,6 +234,13 @@
       showView(views.hostLobby);
     });
 
+  function isSameName(name1, name2) {
+    if (!name1 || !name2) return false;
+    const s1 = String(name1).trim().replace(/\s+/g, '').normalize('NFC');
+    const s2 = String(name2).trim().replace(/\s+/g, '').normalize('NFC');
+    return s1 === s2;
+  }
+
     // 3. Room Joined (everyone)
     socket.on('roomJoined', (data) => {
       roomId = data.roomId;
@@ -266,7 +273,7 @@
         }
       } else {
         currentRole = 'student';
-        playerName = data.name;
+        if (data.name) playerName = data.name;
         completedLinesTracked = [];
         previousBingoCount = 0;
         
@@ -278,8 +285,25 @@
         document.getElementById('display-student-game-topic').innerText = `주제: ${topic}`;
         document.getElementById('label-student-game-target').innerText = targetBingo;
 
-        if (data.settings.status === 'lobby') {
-          // Setup Board Entry input
+        if (data.settings.status === 'playing' || data.settings.status === 'finished') {
+          // Game already running! Show studentGame view immediately!
+          const waitOverlay = document.getElementById('overlay-wait-start');
+          if (waitOverlay) waitOverlay.classList.remove('active');
+          
+          if (data.board && data.board.length > 0) {
+            boardWords = data.board;
+          }
+          const stampedMatrix = data.stamped || Array(gridRows).fill(null).map(() => Array(gridCols).fill(false));
+          renderStudentPlayBoard(boardWords, stampedMatrix);
+          renderStudentDrawnWords();
+          updateStudentTurnBanner(data.activeTurnPlayer);
+          showView(views.studentGame);
+          
+          if (data.settings.status === 'finished' && data.winners.length > 0) {
+            showVictoryOverlay(data.winners);
+          }
+        } else {
+          // Setup Board Entry input in lobby
           if (!data.ready) {
             document.getElementById('overlay-wait-start').classList.remove('active');
             renderStudentInputGrid(gridRows, gridCols);
@@ -294,18 +318,6 @@
             });
           }
           showView(views.studentLobby);
-        } else {
-          // Game already running, join mid-way
-          document.getElementById('overlay-wait-start').classList.remove('active');
-          
-          renderStudentPlayBoard(data.board, data.stamped);
-          renderStudentDrawnWords();
-          updateStudentTurnBanner(data.activeTurnPlayer);
-          showView(views.studentGame);
-          
-          if (data.settings.status === 'finished' && data.winners.length > 0) {
-            showVictoryOverlay(data.winners);
-          }
         }
       }
     });
@@ -326,14 +338,18 @@
 
     // 5. Game Started
     socket.on('gameStarted', (data) => {
+      if (currentRole !== 'host') {
+        currentRole = 'student';
+      }
       turnSequence = data.turnSequence;
       activeTurnPlayer = data.activeTurnPlayer;
       drawnWords = [];
       completedLinesTracked = [];
       previousBingoCount = 0;
 
-      // Close wait overlay if student
-      document.getElementById('overlay-wait-start').classList.remove('active');
+      // FORCIBLY REMOVE WAIT OVERLAY
+      const waitOverlay = document.getElementById('overlay-wait-start');
+      if (waitOverlay) waitOverlay.classList.remove('active');
       views.victoryOverlay.classList.remove('active');
 
       if (currentRole === 'host') {
@@ -346,8 +362,8 @@
         renderHostSpyDashboard(data.players);
         showView(views.hostGame);
       } else {
-        // Retrieve my updated board from data.players (handles server auto-filled words!)
-        const myDetails = (data.players || []).find(p => p.name === playerName || cleanString(p.name) === cleanString(playerName));
+        // Retrieve my updated board from data.players
+        const myDetails = (data.players || []).find(p => isSameName(p.name, playerName));
         if (myDetails && myDetails.board && myDetails.board.length > 0) {
           boardWords = myDetails.board;
         } else {
@@ -356,7 +372,9 @@
         }
 
         const emptyStamp = Array(gridRows).fill(null).map(() => Array(gridCols).fill(false));
-        renderStudentPlayBoard(boardWords, emptyStamp);
+        const stampedMatrix = (myDetails && myDetails.stamped) ? myDetails.stamped : emptyStamp;
+
+        renderStudentPlayBoard(boardWords, stampedMatrix);
         renderStudentDrawnWords();
         updateStudentTurnBanner(activeTurnPlayer);
         
