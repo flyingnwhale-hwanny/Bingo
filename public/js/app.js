@@ -369,20 +369,28 @@
 
       SoundEffects.playStamp();
 
+      // Ensure wait overlay is removed and student remains on game view
+      const waitOverlay = document.getElementById('overlay-wait-start');
+      if (waitOverlay) waitOverlay.classList.remove('active');
+
       if (currentRole === 'host') {
         renderHostDrawnWords();
         renderHostTurnCard();
         renderHostSpyDashboard(data.players);
       } else {
         // Find player details to retrieve stamped
-        const myDetails = data.players.find(p => p.name === playerName);
+        const myDetails = (data.players || []).find(p => p.name === playerName || (typeof cleanString !== 'undefined' && cleanString(p.name) === cleanString(playerName)));
         if (myDetails) {
           renderStudentPlayBoard(boardWords, myDetails.stamped);
           checkAndReportBingo(myDetails.stamped);
+        } else if (boardWords && boardWords.length > 0) {
+          const emptyStamp = Array(gridRows).fill(null).map(() => Array(gridCols).fill(false));
+          renderStudentPlayBoard(boardWords, emptyStamp);
         }
         
         renderStudentDrawnWords();
         updateStudentTurnBanner(activeTurnPlayer);
+        showView(views.studentGame);
       }
     });
 

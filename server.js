@@ -536,7 +536,7 @@ function cleanString(str) {
     }
 
     // Broadcast the selection to all players
-    io.to(roomId).emit('wordSelected', {
+    io.to(cleanRoomId).emit('wordSelected', {
       word: cleanWord,
       selectedBy: name,
       nextTurnPlayer: nextPlayerName,
