@@ -174,9 +174,15 @@ io.on('connection', (socket) => {
     });
   });
 
+// Helper for clean string & Unicode NFC normalization (resolving iOS Safari NFD Hangul issues)
+function cleanString(str) {
+  if (!str) return '';
+  return String(str).trim().normalize('NFC');
+}
+
   // 2. Join Room (Student or Host reconnecting)
   socket.on('joinRoom', ({ roomId, name, role }) => {
-    const cleanRoomId = roomId ? String(roomId).trim() : '';
+    const cleanRoomId = cleanString(roomId);
     const room = rooms[cleanRoomId];
     if (!room) {
       socket.emit('errorMsg', '방이 존재하지 않습니다. 방 번호를 다시 확인해주세요.');
@@ -210,26 +216,30 @@ io.on('connection', (socket) => {
     }
 
     // Student joining
-    if (!name || String(name).trim() === '') {
+    const trimmedName = cleanString(name);
+    if (!trimmedName) {
       socket.emit('errorMsg', '이름을 입력해주세요.');
       return;
     }
 
-    const trimmedName = String(name).trim();
     socket.playerName = trimmedName;
     socket.isHost = false;
 
-    // Check if player already exists in this room
-    if (room.players[trimmedName]) {
-      // Reconnection or name taken
-      const existingPlayer = room.players[trimmedName];
-      console.log(`Player ${trimmedName} reconnecting/updating in room ${cleanRoomId}`);
+    // Check if player already exists in this room (direct match or normalized match)
+    let existingPlayer = room.players[trimmedName];
+    if (!existingPlayer) {
+      existingPlayer = Object.values(room.players).find(p => cleanString(p.name) === trimmedName);
+    }
+
+    if (existingPlayer) {
+      // Reconnection or update
+      console.log(`Player [${existingPlayer.name}] reconnecting/updating in room ${cleanRoomId}`);
       existingPlayer.socketId = socket.id;
       
       socket.emit('roomJoined', {
         role: 'student',
         roomId: cleanRoomId,
-        name: trimmedName,
+        name: existingPlayer.name,
         settings: {
           topic: room.topic,
           gridSize: room.gridSize,
@@ -261,7 +271,7 @@ io.on('connection', (socket) => {
         won: false
       };
 
-      console.log(`Student ${trimmedName} joined room ${cleanRoomId}`);
+      console.log(`Student [${trimmedName}] joined room ${cleanRoomId}`);
       socket.emit('roomJoined', {
         role: 'student',
         roomId: cleanRoomId,
@@ -289,17 +299,29 @@ io.on('connection', (socket) => {
 
   // 3. Submit Board Words (Student)
   socket.on('submitBoard', ({ roomId, name, board }) => {
-    const cleanRoomId = roomId ? String(roomId).trim() : '';
+    const cleanRoomId = cleanString(roomId);
     const room = rooms[cleanRoomId];
     if (!room) {
       console.log(`submitBoard failed: room [${cleanRoomId}] not found`);
       return;
     }
 
-    const cleanName = name ? String(name).trim() : '';
-    const player = room.players[cleanName] || (socket.playerName ? room.players[socket.playerName] : null);
+    const targetName = cleanString(name);
+
+    // 4-layer player lookup fallback strategy
+    let player = room.players[targetName];
     if (!player) {
-      console.log(`submitBoard failed: player [${cleanName}] not found in room [${cleanRoomId}]`);
+      player = Object.values(room.players).find(p => p.socketId === socket.id);
+    }
+    if (!player && socket.playerName) {
+      player = room.players[cleanString(socket.playerName)];
+    }
+    if (!player && targetName) {
+      player = Object.values(room.players).find(p => cleanString(p.name) === targetName);
+    }
+
+    if (!player) {
+      console.log(`submitBoard failed: player [${targetName}] not found in room [${cleanRoomId}]. Current players:`, Object.keys(room.players));
       return;
     }
 
@@ -310,7 +332,7 @@ io.on('connection', (socket) => {
     player.stamped = Array(room.gridSize.rows).fill(null).map(() => Array(room.gridSize.cols).fill(false));
     player.won = false;
 
-    console.log(`Player ${player.name} submitted board in room ${cleanRoomId}`);
+    console.log(`Player [${player.name}] submitted board in room ${cleanRoomId}`);
 
     // Notify room of player list update (ready status changed)
     io.to(cleanRoomId).emit('playersUpdated', getPlayerList(room));

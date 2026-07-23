@@ -526,7 +526,7 @@
     });
 
     document.getElementById('btn-submit-name').addEventListener('click', () => {
-      const name = document.getElementById('input-student-name').value.trim();
+      const name = document.getElementById('input-student-name').value.trim().normalize('NFC');
       if (!name) {
         alert('이름을 입력해주세요.');
         return;
@@ -595,10 +595,10 @@
         return;
       }
 
-      boardWords = words;
+      boardWords = words.map(w => w.normalize('NFC'));
       socket.emit('submitBoard', {
         roomId,
-        name: playerName,
+        name: playerName ? playerName.normalize('NFC') : '',
         board: boardWords
       });
 
