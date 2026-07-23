@@ -480,6 +480,12 @@
         renderHostDrawnWords();
         renderHostTurnCard();
         renderHostSpyDashboard(data.players);
+        if (hostRole === 'player') {
+          const hostPlayer = (data.players || []).find(p => p.isHost || p.name === '방장');
+          if (hostPlayer && hostPlayer.board) {
+            renderHostPlayBoard(hostPlayer.board, hostPlayer.stamped);
+          }
+        }
       } else {
         // Find player details to retrieve stamped
         const myDetails = (data.players || []).find(p => p.name === playerName || (typeof cleanString !== 'undefined' && cleanString(p.name) === cleanString(playerName)));
