@@ -49,7 +49,7 @@
             <span class="icon">🏫</span>
             <div class="btn-text">
               <span class="btn-title">방 만들기</span>
-              <span class="btn-desc">선생님 / 호스트용 게임 개설</span>
+              <span class="btn-desc">방장 / 호스트용 게임 개설</span>
             </div>
           </button>
           
@@ -93,13 +93,13 @@
         </div>
 
         <div class="form-group">
-          <label>🎭 방개설자(선생님) 역할 선택</label>
+          <label>🎭 방개설자(방장) 역할 선택</label>
           <div class="mode-select-group">
             <button type="button" id="btn-host-role-spectator" class="btn-mode-select active">
-              👀 관전 모드 (선생님 전용 관리)
+              👀 관전 모드 (방장 전용 관리)
             </button>
             <button type="button" id="btn-host-role-player" class="btn-mode-select">
-              🎮 직접 참여 모드 (선생님도 게임 참여!)
+              🎮 직접 참여 모드 (방장도 함께 게임 참여!)
             </button>
           </div>
         </div>
@@ -176,7 +176,7 @@
         <!-- Room Control & QR Code Panel -->
         <div class="card host-info-card animate-slide-right">
           <div class="host-header">
-            <span class="role-badge">선생님(호스트) 화면</span>
+            <span class="role-badge">방장(호스트) 화면</span>
             <h2 id="label-host-lobby-topic" class="topic-title">주제: 동물 이름</h2>
           </div>
           
@@ -283,7 +283,7 @@
         <div class="wait-content animate-bounce-slow">
           <div class="loader-dog-paw">🐾</div>
           <h3>빙고판 입력 완료!</h3>
-          <p>선생님 화면에서 게임이 시작되기를 기다리고 있습니다.</p>
+          <p>방장 화면에서 게임이 시작되기를 기다리고 있습니다.</p>
           <div class="player-badge-name" id="display-wait-name">홍길동</div>
           <button id="btn-edit-board" class="btn btn-secondary btn-sm">다시 수정하기</button>
         </div>
@@ -330,7 +330,7 @@
         <div class="card host-boards-dashboard animate-slide-left">
           <div class="dashboard-header">
             <div id="container-host-view-tabs" class="host-view-tabs" style="display: none;">
-              <button type="button" id="btn-tab-host-board" class="btn-host-tab active">🎮 내 빙고판 (선생님 플레이)</button>
+              <button type="button" id="btn-tab-host-board" class="btn-host-tab active">🎮 내 빙고판 (방장 플레이)</button>
               <button type="button" id="btn-tab-host-spy" class="btn-host-tab">📈 학생 전체 감시판</button>
             </div>
             <h3 id="heading-host-dashboard-title">📈 학생 빙고 현황 실시간 감시</h3>
@@ -436,7 +436,7 @@
       <div class="victory-controls student-view-only" id="student-victory-controls">
         <div class="student-wait-alert">
           <span class="spinner-small"></span>
-          선생님이 다음 행동을 설정하고 있습니다...
+          방장이 다음 행동을 설정하고 있습니다...
         </div>
       </div>
     </div>

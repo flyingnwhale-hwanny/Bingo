@@ -397,13 +397,13 @@
 
         if (hostRole === 'player') {
           if (tabsContainer) tabsContainer.style.display = 'flex';
-          const hostPlayer = (data.players || []).find(p => p.isHost || p.name === '선생님');
+          const hostPlayer = (data.players || []).find(p => p.isHost || p.name === '방장');
           if (hostPlayer && hostPlayer.board) {
             renderHostPlayBoard(hostPlayer.board, hostPlayer.stamped);
           }
           if (playBoardContainer) playBoardContainer.style.display = 'flex';
           if (spyDashboardContainer) spyDashboardContainer.style.display = 'none';
-          if (headingTitle) headingTitle.innerText = '🎮 선생님 빙고 게임판';
+          if (headingTitle) headingTitle.innerText = '🎮 방장 빙고 게임판';
         } else {
           if (tabsContainer) tabsContainer.style.display = 'none';
           if (playBoardContainer) playBoardContainer.style.display = 'none';
@@ -532,13 +532,13 @@
 
     // 10. Host Disconnected
     socket.on('hostDisconnected', () => {
-      alert('교사/호스트와의 연결이 끊어졌습니다. 대기 중입니다...');
+      alert('방장(호스트)과의 연결이 끊어졌습니다. 대기 중입니다...');
     });
 
     // 11. Name Updated By Host (Student)
     socket.on('nameUpdatedByHost', ({ newName }) => {
       playerName = newName;
-      alert(`선생님에 의해 이름이 '${newName}'(으)로 변경되었습니다.`);
+      alert(`방장에 의해 이름이 '${newName}'(으)로 변경되었습니다.`);
       const nameDisp1 = document.getElementById('display-student-game-name');
       if (nameDisp1) nameDisp1.innerText = playerName;
       const nameDisp2 = document.getElementById('display-wait-name');
@@ -547,7 +547,7 @@
 
     // 12. Kicked From Room (Student)
     socket.on('kickedFromRoom', (data) => {
-      const reason = (data && data.reason) ? data.reason : '선생님에 의해 방에서 퇴장되었습니다.';
+      const reason = (data && data.reason) ? data.reason : '방장에 의해 방에서 퇴장되었습니다.';
       alert(`⚠️ 안내: ${reason}`);
       resetLocalState();
       showView(views.home);
@@ -861,7 +861,7 @@
         btnTabHostSpy.classList.remove('active');
         if (containerHostPlayBoard) containerHostPlayBoard.style.display = 'flex';
         if (gridHostStudentsBoards) gridHostStudentsBoards.style.display = 'none';
-        if (headingHostTitle) headingHostTitle.innerText = '🎮 선생님 빙고 게임판';
+        if (headingHostTitle) headingHostTitle.innerText = '🎮 방장 빙고 게임판';
         SoundEffects.playClick();
       });
 

@@ -170,7 +170,7 @@ io.on('connection', (socket) => {
     };
 
     if (isHostPlayer) {
-      const hostPlayerName = '선생님';
+      const hostPlayerName = '방장';
       rooms[roomId].players[hostPlayerName] = {
         name: hostPlayerName,
         socketId: socket.id,
@@ -218,9 +218,9 @@ function cleanString(str) {
     if (role === 'host') {
       room.hostSocketId = socket.id;
       socket.isHost = true;
-      if (room.hostRole === 'player' && room.players['선생님']) {
-        room.players['선생님'].socketId = socket.id;
-        socket.playerName = '선생님';
+      if (room.hostRole === 'player' && room.players['방장']) {
+        room.players['방장'].socketId = socket.id;
+        socket.playerName = '방장';
       }
       console.log(`Host reconnected to room ${cleanRoomId} with socket ${socket.id}`);
       socket.emit('roomJoined', {
