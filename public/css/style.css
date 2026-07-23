@@ -1750,3 +1750,25 @@ input[type="text"]:focus, input[type="number"]:focus, select:focus {
   justify-content: center;
   width: 100%;
 }
+
+/* Host Bingo Board Entry in Host Lobby */
+.host-lobby-board-box {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  border-radius: var(--border-radius-md);
+  padding: 1.25rem;
+  margin: 1rem 0;
+}
+
+.host-board-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.host-board-header h4 {
+  font-family: var(--font-family-title);
+  font-size: 1.1rem;
+  color: var(--color-accent);
+}

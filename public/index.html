@@ -216,6 +216,30 @@
             </div>
           </div>
 
+          <!-- Host Bingo Board Entry Section (Shown when hostRole === 'player') -->
+          <div id="container-host-lobby-board" class="host-lobby-board-box" style="display: none;">
+            <div class="host-board-header">
+              <h4>🎮 방장(나)의 빙고판 작성</h4>
+              <button id="btn-host-clear-all" class="btn btn-danger-outline btn-sm" type="button">🧹 전부 비우기</button>
+            </div>
+
+            <!-- Host Word Pool Tray (Visible when fillMode === 'pool') -->
+            <div id="container-host-pool-tray" class="word-pool-tray-container" style="display: none;">
+              <div class="pool-tray-header">
+                <span>📋 선택 가능한 보기 단어 목록</span>
+              </div>
+              <div id="list-host-pool-chips" class="word-pool-chips-grid"></div>
+            </div>
+
+            <div class="board-wrapper">
+              <div id="grid-host-input" class="bingo-grid"></div>
+            </div>
+
+            <button id="btn-host-submit-board" class="btn btn-accent btn-block btn-sm" type="button">
+              ✍️ 방장 빙고판 입력 완료!
+            </button>
+          </div>
+
           <div class="lobby-action-box">
             <button id="btn-start-game" class="btn btn-accent btn-block btn-large btn-pulse" disabled>
               🎲 빙고 시작 (0명 준비됨)

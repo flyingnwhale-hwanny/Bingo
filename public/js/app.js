@@ -241,6 +241,13 @@
         </div>
       `;
 
+      if (hostRole === 'player') {
+        renderHostLobbyBoard(gridRows, gridCols);
+      } else {
+        const container = document.getElementById('container-host-lobby-board');
+        if (container) container.style.display = 'none';
+      }
+
       showView(views.hostLobby);
     });
 
@@ -266,6 +273,12 @@
       if (data.role === 'host') {
         currentRole = 'host';
         if (data.settings.status === 'lobby') {
+          if (hostRole === 'player') {
+            renderHostLobbyBoard(gridRows, gridCols);
+          } else {
+            const container = document.getElementById('container-host-lobby-board');
+            if (container) container.style.display = 'none';
+          }
           showView(views.hostLobby);
         } else {
           // Reconnect back to gaming board
@@ -848,6 +861,47 @@
       });
     }
 
+    // Host Lobby Board Action Buttons
+    const btnHostSubmitBoard = document.getElementById('btn-host-submit-board');
+    if (btnHostSubmitBoard) {
+      btnHostSubmitBoard.addEventListener('click', () => {
+        const inputs = document.querySelectorAll('#grid-host-input .bingo-input-cell input');
+        const words = Array.from(inputs).map(inp => inp.value.trim().normalize('NFC'));
+        if (words.some(w => w === '')) {
+          alert('빈칸이 있습니다! 모든 칸에 단어를 채워 넣어주세요.');
+          return;
+        }
+        const uniques = new Set(words);
+        if (uniques.size !== words.length) {
+          alert('중복된 단어가 있습니다! 서로 다른 단어들을 입력해 주세요.');
+          return;
+        }
+
+        socket.emit('submitBoard', {
+          roomId,
+          name: '방장',
+          board: words,
+          silent: false
+        });
+        alert('🎉 방장의 빙고판 단어 입력이 완료되었습니다!');
+        SoundEffects.playJoin();
+      });
+    }
+
+    const btnHostClearAll = document.getElementById('btn-host-clear-all');
+    if (btnHostClearAll) {
+      btnHostClearAll.addEventListener('click', () => {
+        const inputs = document.querySelectorAll('#grid-host-input .bingo-input-cell input');
+        inputs.forEach(input => { input.value = ''; });
+        selectedPoolChipWord = null;
+        if (fillMode === 'pool') {
+          renderHostWordPoolChips();
+        }
+        autoSyncHostBoard();
+        SoundEffects.playClick();
+      });
+    }
+
     // Host view tabs listener
     const btnTabHostBoard = document.getElementById('btn-tab-host-board');
     const btnTabHostSpy = document.getElementById('btn-tab-host-spy');
@@ -1077,6 +1131,184 @@
         board: currentWords,
         silent: true
       });
+    }
+  }
+
+  // Auto sync host board with server
+  function autoSyncHostBoard() {
+    const inputs = document.querySelectorAll('#grid-host-input .bingo-input-cell input');
+    if (!inputs || inputs.length === 0) return;
+    const currentWords = Array.from(inputs).map(inp => inp.value.trim().normalize('NFC'));
+    if (socket && socket.connected && roomId) {
+      socket.emit('submitBoard', {
+        roomId,
+        name: '방장',
+        board: currentWords,
+        silent: true
+      });
+    }
+  }
+
+  // Render Host Word Pool Chips in Host Lobby
+  function renderHostWordPoolChips() {
+    const poolGrid = document.getElementById('list-host-pool-chips');
+    if (!poolGrid) return;
+    poolGrid.innerHTML = '';
+
+    const currentPlacedWords = new Set();
+    document.querySelectorAll('#grid-host-input .bingo-input-cell input').forEach(input => {
+      const val = input.value.trim().normalize('NFC');
+      if (val !== '') currentPlacedWords.add(val);
+    });
+
+    wordPool.forEach((word) => {
+      const chip = document.createElement('div');
+      const isPlaced = currentPlacedWords.has(word.normalize('NFC'));
+
+      chip.className = `word-chip ${isPlaced ? 'placed' : ''} ${selectedPoolChipWord === word ? 'selected' : ''}`;
+      chip.innerText = word;
+      chip.dataset.word = word;
+      chip.draggable = !isPlaced;
+
+      if (!isPlaced) {
+        chip.addEventListener('dragstart', (e) => {
+          e.dataTransfer.setData('text/plain', word);
+          chip.classList.add('dragging');
+        });
+
+        chip.addEventListener('dragend', () => {
+          chip.classList.remove('dragging');
+        });
+
+        chip.addEventListener('click', () => {
+          if (selectedPoolChipWord === word) {
+            selectedPoolChipWord = null;
+          } else {
+            selectedPoolChipWord = word;
+          }
+          renderHostWordPoolChips();
+          SoundEffects.playClick();
+        });
+      }
+
+      poolGrid.appendChild(chip);
+    });
+  }
+
+  // Render Host's editable bingo board in Host Lobby when hostRole === 'player'
+  function renderHostLobbyBoard(rows, cols) {
+    const container = document.getElementById('container-host-lobby-board');
+    if (!container) return;
+    if (hostRole !== 'player') {
+      container.style.display = 'none';
+      return;
+    }
+    container.style.display = 'block';
+
+    const poolTrayContainer = document.getElementById('container-host-pool-tray');
+    if (fillMode === 'pool') {
+      if (poolTrayContainer) poolTrayContainer.style.display = 'block';
+    } else {
+      if (poolTrayContainer) poolTrayContainer.style.display = 'none';
+    }
+
+    const gridContainer = document.getElementById('grid-host-input');
+    if (!gridContainer) return;
+    gridContainer.className = `bingo-grid`;
+    gridContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    gridContainer.style.aspectRatio = `${cols} / ${rows}`;
+    gridContainer.innerHTML = '';
+
+    const totalCells = rows * cols;
+    for (let i = 0; i < totalCells; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'bingo-input-cell';
+      
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.maxLength = 15;
+      input.placeholder = `단어 ${i + 1}`;
+      input.id = `host-input-cell-${i}`;
+      
+      if (fillMode === 'pool') {
+        input.readOnly = true;
+      } else {
+        input.readOnly = false;
+      }
+
+      cell.addEventListener('click', () => {
+        if (fillMode === 'pool') {
+          if (selectedPoolChipWord) {
+            input.value = selectedPoolChipWord;
+            selectedPoolChipWord = null;
+            renderHostWordPoolChips();
+            autoSyncHostBoard();
+            SoundEffects.playClick();
+          } else if (input.value.trim() !== '') {
+            input.value = '';
+            renderHostWordPoolChips();
+            autoSyncHostBoard();
+            SoundEffects.playClick();
+          }
+        }
+      });
+
+      cell.addEventListener('dragover', (e) => {
+        if (fillMode === 'pool') {
+          e.preventDefault();
+          cell.classList.add('drag-over');
+        }
+      });
+
+      cell.addEventListener('dragenter', (e) => {
+        if (fillMode === 'pool') {
+          e.preventDefault();
+          cell.classList.add('drag-over');
+        }
+      });
+
+      cell.addEventListener('dragleave', () => {
+        cell.classList.remove('drag-over');
+      });
+
+      cell.addEventListener('drop', (e) => {
+        if (fillMode === 'pool') {
+          e.preventDefault();
+          cell.classList.remove('drag-over');
+          const droppedWord = e.dataTransfer.getData('text/plain');
+          if (droppedWord && droppedWord.trim() !== '') {
+            input.value = droppedWord.trim().normalize('NFC');
+            selectedPoolChipWord = null;
+            renderHostWordPoolChips();
+            autoSyncHostBoard();
+            SoundEffects.playStamp();
+          }
+        }
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const nextInput = document.getElementById(`host-input-cell-${i + 1}`);
+          if (nextInput) nextInput.focus();
+        }
+      });
+
+      input.addEventListener('input', () => {
+        autoSyncHostBoard();
+      });
+
+      const label = document.createElement('span');
+      label.className = 'cell-index';
+      label.innerText = i + 1;
+
+      cell.appendChild(label);
+      cell.appendChild(input);
+      gridContainer.appendChild(cell);
+    }
+
+    if (fillMode === 'pool') {
+      renderHostWordPoolChips();
     }
   }
 
