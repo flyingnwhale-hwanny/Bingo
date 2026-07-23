@@ -94,18 +94,35 @@ const LOCAL_IP = getLocalIpAddress();
 let publicTunnelUrl = null;
 
 function startTunnel() {
+  // Do NOT run local tunnels on cloud hosting (Render.com, etc.)
+  if (process.env.RENDER || process.env.NODE_ENV === 'production') {
+    console.log('Running on Cloud Server (Render). Local tunnel disabled.');
+    return;
+  }
+
   try {
-    const tunnelProc = exec('npx.cmd -y tunnelmole 3000');
-    tunnelProc.stdout.on('data', (data) => {
-      const match = data.toString().match(/https:\/\/[a-z0-9\-]+\.tunnelmole\.net/i);
-      if (match) {
-        publicTunnelUrl = match[0];
-        console.log('--------------------------------------------------');
-        console.log('🌐 Direct Mobile Tunnel Ready (No IP prompt):', publicTunnelUrl);
-        console.log('--------------------------------------------------');
-      }
+    const cmd = process.platform === 'win32' ? 'npx.cmd -y tunnelmole 3000' : 'npx -y tunnelmole 3000';
+    const tunnelProc = exec(cmd);
+    
+    if (tunnelProc.stdout) {
+      tunnelProc.stdout.on('data', (data) => {
+        const match = data.toString().match(/https:\/\/[a-z0-9\-]+\.tunnelmole\.net/i);
+        if (match) {
+          publicTunnelUrl = match[0];
+          console.log('--------------------------------------------------');
+          console.log('🌐 Direct Mobile Tunnel Ready (No IP prompt):', publicTunnelUrl);
+          console.log('--------------------------------------------------');
+        }
+      });
+    }
+
+    if (tunnelProc.stderr) {
+      tunnelProc.stderr.on('data', () => {});
+    }
+
+    tunnelProc.on('error', (err) => {
+      console.log('Tunnel process error ignored:', err.message);
     });
-    tunnelProc.stderr.on('data', () => {});
   } catch (e) {
     console.log('Tunnel init warning:', e.message);
   }
