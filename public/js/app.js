@@ -525,6 +525,14 @@
         document.getElementById('input-target-bingo').value = target;
       }
 
+      if (!socket || !socket.connected) {
+        if (typeof io !== 'undefined') {
+          socket = io();
+        }
+        alert('서버와 연결을 확인 중입니다. 잠시 후 다시 [방 개설하기]를 눌러주세요.');
+        return;
+      }
+
       socket.emit('createRoom', {
         topic: topicInput || '자유 주제',
         rows: rows,
