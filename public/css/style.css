@@ -627,6 +627,39 @@ input[type="text"]:focus, input[type="number"]:focus, select:focus {
   background: rgba(52, 211, 153, 0.05);
 }
 
+.player-badge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.player-actions {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.btn-action-edit, .btn-action-kick {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.35rem;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  color: #fff;
+}
+
+.btn-action-edit:hover {
+  background: rgba(167, 139, 250, 0.4);
+  transform: scale(1.15);
+}
+
+.btn-action-kick:hover {
+  background: rgba(248, 113, 113, 0.4);
+  transform: scale(1.15);
+}
+
 .player-badge-status {
   font-size: 0.75rem;
   padding: 0.2rem 0.5rem;

@@ -300,24 +300,127 @@ io.on('connection', (socket) => {
     socket.emit('boardSubmittedSuccess');
   });
 
-  // 4. Start Game (Host)
-  socket.on('startGame', ({ roomId }) => {
-    const room = rooms[roomId];
+  // 4. Edit Player Name (Host)
+  socket.on('editPlayerName', ({ roomId, oldName, newName }) => {
+    const cleanRoomId = roomId ? String(roomId).trim() : '';
+    const room = rooms[cleanRoomId];
     if (!room || !socket.isHost) return;
 
-    // Check if there are players
-    const players = Object.values(room.players);
-    if (players.length === 0) {
+    const cleanOld = oldName ? String(oldName).trim() : '';
+    const cleanNew = newName ? String(newName).trim() : '';
+
+    if (!cleanNew) {
+      socket.emit('errorMsg', '새 이름을 입력해주세요.');
+      return;
+    }
+
+    if (!room.players[cleanOld]) {
+      socket.emit('errorMsg', '해당 학생을 찾을 수 없습니다.');
+      return;
+    }
+
+    if (cleanOld !== cleanNew && room.players[cleanNew]) {
+      socket.emit('errorMsg', '이미 동일한 이름의 학생이 방에 존재합니다.');
+      return;
+    }
+
+    const playerObj = room.players[cleanOld];
+    playerObj.name = cleanNew;
+
+    delete room.players[cleanOld];
+    room.players[cleanNew] = playerObj;
+
+    // Update target student socket
+    const studentSocket = io.sockets.sockets.get(playerObj.socketId);
+    if (studentSocket) {
+      studentSocket.playerName = cleanNew;
+      studentSocket.emit('nameUpdatedByHost', { newName: cleanNew });
+    }
+
+    console.log(`Host renamed [${cleanOld}] to [${cleanNew}] in room ${cleanRoomId}`);
+    io.to(cleanRoomId).emit('playersUpdated', getPlayerList(room));
+  });
+
+  // 5. Kick Player (Host)
+  socket.on('kickPlayer', ({ roomId, targetName }) => {
+    const cleanRoomId = roomId ? String(roomId).trim() : '';
+    const room = rooms[cleanRoomId];
+    if (!room || !socket.isHost) return;
+
+    const cleanTarget = targetName ? String(targetName).trim() : '';
+    const playerObj = room.players[cleanTarget];
+    if (!playerObj) return;
+
+    const studentSocket = io.sockets.sockets.get(playerObj.socketId);
+    if (studentSocket) {
+      studentSocket.emit('kickedFromRoom');
+      studentSocket.leave(cleanRoomId);
+      studentSocket.roomId = null;
+      studentSocket.playerName = null;
+    }
+
+    delete room.players[cleanTarget];
+    console.log(`Host kicked student [${cleanTarget}] from room ${cleanRoomId}`);
+
+    io.to(cleanRoomId).emit('playersUpdated', getPlayerList(room));
+  });
+
+  // 6. Start Game (Host)
+  socket.on('startGame', ({ roomId }) => {
+    const cleanRoomId = roomId ? String(roomId).trim() : '';
+    const room = rooms[cleanRoomId];
+    if (!room || !socket.isHost) return;
+
+    const allPlayers = Object.values(room.players);
+    if (allPlayers.length === 0) {
       socket.emit('errorMsg', '참가한 학생이 없습니다.');
       return;
     }
 
-    // Verify all players are ready
-    const unreadyPlayers = players.filter(p => !p.ready);
-    if (unreadyPlayers.length > 0) {
-      socket.emit('errorMsg', `아직 준비하지 않은 학생이 있습니다: ${unreadyPlayers.map(p => p.name).join(', ')}`);
+    const readyPlayers = allPlayers.filter(p => p.ready);
+    if (readyPlayers.length === 0) {
+      socket.emit('errorMsg', '아직 단어 입력을 완료한 학생이 한 명도 없습니다.');
       return;
     }
+
+    // Exclude unready players from room
+    const unreadyPlayers = allPlayers.filter(p => !p.ready);
+    if (unreadyPlayers.length > 0) {
+      unreadyPlayers.forEach(p => {
+        const studentSocket = io.sockets.sockets.get(p.socketId);
+        if (studentSocket) {
+          studentSocket.emit('kickedFromRoom');
+          studentSocket.leave(cleanRoomId);
+          studentSocket.roomId = null;
+          studentSocket.playerName = null;
+        }
+        delete room.players[p.name];
+      });
+    }
+
+    const finalPlayers = Object.values(room.players);
+    room.status = 'playing';
+    room.drawnWords = [];
+    room.winners = [];
+    
+    finalPlayers.forEach(p => {
+      p.won = false;
+      p.stamped = Array(room.gridSize.rows).fill(null).map(() => Array(room.gridSize.cols).fill(false));
+    });
+
+    const names = finalPlayers.map(p => p.name);
+    room.turnSequence = shuffleArray(names);
+    room.turnIndex = 0;
+
+    console.log(`Game started in room ${cleanRoomId} with ${names.length} ready players. Turn sequence:`, room.turnSequence);
+
+    io.to(cleanRoomId).emit('gameStarted', {
+      status: room.status,
+      activeTurnPlayer: room.turnSequence[0],
+      turnSequence: room.turnSequence,
+      players: getPlayerList(room)
+    });
+  });
 
     // Set game parameters
     room.status = 'playing';

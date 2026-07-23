@@ -412,6 +412,24 @@
     socket.on('hostDisconnected', () => {
       alert('교사/호스트와의 연결이 끊어졌습니다. 대기 중입니다...');
     });
+
+    // 11. Name Updated By Host (Student)
+    socket.on('nameUpdatedByHost', ({ newName }) => {
+      playerName = newName;
+      alert(`선생님에 의해 이름이 '${newName}'(으)로 변경되었습니다.`);
+      const nameDisp1 = document.getElementById('display-student-game-name');
+      if (nameDisp1) nameDisp1.innerText = playerName;
+      const nameDisp2 = document.getElementById('display-wait-name');
+      if (nameDisp2) nameDisp2.innerText = playerName;
+    });
+
+    // 12. Kicked From Room (Student)
+    socket.on('kickedFromRoom', (data) => {
+      const reason = (data && data.reason) ? data.reason : '선생님에 의해 방에서 퇴장되었습니다.';
+      alert(`⚠️ 안내: ${reason}`);
+      resetLocalState();
+      showView(views.home);
+    });
   }
 
   // Bind click/change handlers to DOM buttons
@@ -535,6 +553,19 @@
     });
 
     document.getElementById('btn-start-game').addEventListener('click', () => {
+      const readyBadges = document.querySelectorAll('#list-lobby-players .player-card-badge.ready');
+      const totalBadges = document.querySelectorAll('#list-lobby-players .player-card-badge');
+      const readyCount = readyBadges.length;
+      const totalCount = totalBadges.length;
+      const unreadyCount = totalCount - readyCount;
+
+      if (unreadyCount > 0) {
+        const msg = `아직 단어 입력을 마치지 않은 학생이 ${unreadyCount}명 있습니다.\n\n입력 완료한 ${readyCount}명의 학생만으로 빙고 게임을 시작하시겠습니까?\n(미완료 학생은 방에서 제외됩니다)`;
+        if (!confirm(msg)) {
+          return;
+        }
+      }
+
       socket.emit('startGame', { roomId });
     });
 
@@ -678,18 +709,46 @@
       if (player.ready) readyCount++;
 
       pCard.innerHTML = `
-        <span class="player-badge-status">${statusText}</span>
+        <div class="player-badge-header">
+          <span class="player-badge-status">${statusText}</span>
+          <div class="player-actions">
+            <button class="btn-action-edit" data-name="${player.name}" title="이름 수정">✏️</button>
+            <button class="btn-action-kick" data-name="${player.name}" title="퇴장 시키기">❌</button>
+          </div>
+        </div>
         <span class="player-card-name" title="${player.name}">${player.name}</span>
       `;
       listContainer.appendChild(pCard);
     });
 
-    // Start Game active only if at least 1 student is connected and all are ready
-    const allReady = readyCount === players.length;
-    document.getElementById('btn-start-game').disabled = !allReady || players.length === 0;
-    document.getElementById('btn-start-game').innerText = allReady 
-      ? `🎲 빙고 게임 시작하기!` 
-      : `🎲 빙고 시작 (${readyCount}/${players.length}명 완료)`;
+    // Attach click events for edit & kick buttons
+    listContainer.querySelectorAll('.btn-action-edit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const oldName = btn.dataset.name;
+        const newName = prompt(`'${oldName}' 학생의 새로운 이름을 입력하세요:`, oldName);
+        if (newName && newName.trim() && newName.trim() !== oldName) {
+          socket.emit('editPlayerName', { roomId, oldName, newName: newName.trim() });
+        }
+      });
+    });
+
+    listContainer.querySelectorAll('.btn-action-kick').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const targetName = btn.dataset.name;
+        if (confirm(`정말로 '${targetName}' 학생을 방에서 퇴장시키시겠습니까?`)) {
+          socket.emit('kickPlayer', { roomId, targetName });
+        }
+      });
+    });
+
+    const startBtn = document.getElementById('btn-start-game');
+    const canStart = readyCount > 0;
+    startBtn.disabled = !canStart;
+    startBtn.innerText = canStart 
+      ? `🎲 빙고 게임 시작하기! (${readyCount}명 준비됨 / 총 ${players.length}명)` 
+      : `🎲 빙고 시작 (입력 완료한 학생 없음)`;
   }
 
   // Render student input board view
