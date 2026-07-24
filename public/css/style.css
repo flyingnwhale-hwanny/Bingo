@@ -1271,13 +1271,41 @@ input[type="text"]:focus, input[type="number"]:focus, select:focus {
 
 .cell-content-text {
   font-family: var(--font-family-title);
-  font-size: 1.25rem;
+  font-size: clamp(0.7rem, 2.2vw, 1.15rem);
+  line-height: 1.15;
   text-align: center;
-  word-break: break-all;
-  padding: 6px;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  padding: 4px;
   color: #fff;
   z-index: 2;
   transition: var(--transition-smooth);
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: normal;
+}
+
+/* Dynamic Font Scaling Classes for Long Country Names / Words */
+.cell-content-text.word-long,
+.bingo-input-cell input.word-long {
+  font-size: clamp(0.62rem, 1.7vw, 0.95rem) !important;
+  line-height: 1.1 !important;
+}
+
+.cell-content-text.word-extra-long,
+.bingo-input-cell input.word-extra-long {
+  font-size: clamp(0.52rem, 1.4vw, 0.8rem) !important;
+  line-height: 1.05 !important;
+}
+
+.cell-content-text.word-super-long,
+.bingo-input-cell input.word-super-long {
+  font-size: clamp(0.48rem, 1.1vw, 0.7rem) !important;
+  line-height: 1.0 !important;
 }
 
 /* stamped background and stamp animation overlay */

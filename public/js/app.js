@@ -1019,6 +1019,16 @@
     }
   }
 
+  // Get CSS font scaling class based on word length
+  function getWordLengthClass(word) {
+    if (!word) return '';
+    const len = String(word).trim().length;
+    if (len >= 13) return 'word-super-long';
+    if (len >= 9) return 'word-extra-long';
+    if (len >= 6) return 'word-long';
+    return '';
+  }
+
   // Render Host's interactive playing board when hostRole === 'player'
   function renderHostPlayBoard(board, stampedMatrix) {
     const gridContainer = document.getElementById('grid-host-play-board');
@@ -1043,7 +1053,8 @@
         cell.dataset.word = word;
 
         const textSpan = document.createElement('span');
-        textSpan.className = 'cell-content-text';
+        const lenClass = getWordLengthClass(word);
+        textSpan.className = `cell-content-text ${lenClass}`;
         textSpan.innerText = word;
 
         if (isStamped) {
@@ -1263,12 +1274,14 @@
         if (fillMode === 'pool') {
           if (selectedPoolChipWord) {
             input.value = selectedPoolChipWord;
+            input.className = getWordLengthClass(input.value);
             selectedPoolChipWord = null;
             renderHostWordPoolChips();
             autoSyncHostBoard();
             SoundEffects.playClick();
           } else if (input.value.trim() !== '') {
             input.value = '';
+            input.className = '';
             renderHostWordPoolChips();
             autoSyncHostBoard();
             SoundEffects.playClick();
@@ -1301,6 +1314,7 @@
           const droppedWord = e.dataTransfer.getData('text/plain');
           if (droppedWord && droppedWord.trim() !== '') {
             input.value = droppedWord.trim().normalize('NFC');
+            input.className = getWordLengthClass(input.value);
             selectedPoolChipWord = null;
             renderHostWordPoolChips();
             autoSyncHostBoard();
@@ -1318,6 +1332,7 @@
       });
 
       input.addEventListener('input', () => {
+        input.className = getWordLengthClass(input.value);
         autoSyncHostBoard();
       });
 
@@ -1413,6 +1428,7 @@
         if (fillMode === 'pool') {
           if (selectedPoolChipWord) {
             input.value = selectedPoolChipWord;
+            input.className = getWordLengthClass(input.value);
             selectedPoolChipWord = null;
             renderWordPoolChips();
             autoSyncStudentBoard();
@@ -1420,6 +1436,7 @@
           } else if (input.value.trim() !== '') {
             // Click to clear cell
             input.value = '';
+            input.className = '';
             renderWordPoolChips();
             autoSyncStudentBoard();
             SoundEffects.playClick();
@@ -1453,6 +1470,7 @@
           const droppedWord = e.dataTransfer.getData('text/plain');
           if (droppedWord && droppedWord.trim() !== '') {
             input.value = droppedWord.trim().normalize('NFC');
+            input.className = getWordLengthClass(input.value);
             selectedPoolChipWord = null;
             renderWordPoolChips();
             autoSyncStudentBoard();
@@ -1471,6 +1489,7 @@
       });
 
       input.addEventListener('input', () => {
+        input.className = getWordLengthClass(input.value);
         autoSyncStudentBoard();
       });
 
@@ -1523,7 +1542,8 @@
       const word = board[i] || '';
       
       const content = document.createElement('span');
-      content.className = 'cell-content-text';
+      const lenClass = getWordLengthClass(word);
+      content.className = `cell-content-text ${lenClass}`;
       content.innerText = word;
       
       // Stamped classes & overlay
