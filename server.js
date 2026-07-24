@@ -579,6 +579,50 @@ function getTopicWords(topicName) {
     });
   });
 
+// Server-side Bingo line checker
+function checkBingos(stamped, rows, cols) {
+  if (!stamped || !Array.isArray(stamped)) return { count: 0, completedLines: [] };
+  const completedLines = [];
+  
+  // Check rows
+  for (let r = 0; r < rows; r++) {
+    let full = true;
+    for (let c = 0; c < cols; c++) {
+      if (!stamped[r] || !stamped[r][c]) { full = false; break; }
+    }
+    if (full) completedLines.push(`row-${r}`);
+  }
+  
+  // Check cols
+  for (let c = 0; c < cols; c++) {
+    let full = true;
+    for (let r = 0; r < rows; r++) {
+      if (!stamped[r] || !stamped[r][c]) { full = false; break; }
+    }
+    if (full) completedLines.push(`col-${c}`);
+  }
+
+  // Check Diagonals
+  if (rows === cols) {
+    let diag1 = true;
+    for (let i = 0; i < rows; i++) {
+      if (!stamped[i] || !stamped[i][i]) { diag1 = false; break; }
+    }
+    if (diag1) completedLines.push('diag-1');
+
+    let diag2 = true;
+    for (let i = 0; i < rows; i++) {
+      if (!stamped[i] || !stamped[i][rows - 1 - i]) { diag2 = false; break; }
+    }
+    if (diag2) completedLines.push('diag-2');
+  }
+
+  return {
+    count: completedLines.length,
+    completedLines
+  };
+}
+
   // 5. Select Word (Turn Player or Host)
   socket.on('selectWord', ({ roomId, name, word }) => {
     const cleanRoomId = cleanString(roomId);
@@ -618,12 +662,29 @@ function getTopicWords(topicName) {
       }
     });
 
+    // Check for ALL players who achieved targetBingo on this exact drawn word
+    const newWinnersThisTurn = [];
+    Object.values(room.players).forEach(player => {
+      if (!player.won) {
+        const { count } = checkBingos(player.stamped, rows, cols);
+        if (count >= room.targetBingo) {
+          player.won = true;
+          newWinnersThisTurn.push(player.name);
+          if (!room.winners.includes(player.name)) {
+            room.winners.push(player.name);
+          }
+          if (!room.allTimeWinners.includes(player.name)) {
+            room.allTimeWinners.push(player.name);
+          }
+        }
+      }
+    });
+
     // Determine next player's turn
-    // Skip players who have already won (if any are archived)
+    // Skip players who have already won
     let nextTurnIndex = room.turnIndex;
     let nextPlayerName = null;
     
-    // Find next active player who hasn't won yet
     for (let i = 1; i <= room.turnSequence.length; i++) {
       const idx = (room.turnIndex + i) % room.turnSequence.length;
       const testName = room.turnSequence[idx];
@@ -635,49 +696,73 @@ function getTopicWords(topicName) {
       }
     }
 
-    // If no one is found (all won), we'll keep the current index
     if (nextPlayerName) {
       room.turnIndex = nextTurnIndex;
     } else {
-      nextPlayerName = activePlayerName; // Fallback
+      nextPlayerName = activePlayerName;
     }
 
-    // Broadcast the selection to all players
-    io.to(cleanRoomId).emit('wordSelected', {
-      word: cleanWord,
-      selectedBy: name,
-      nextTurnPlayer: nextPlayerName,
-      players: getPlayerList(room), // Update student layouts and stamp statuses
-      drawnWords: room.drawnWords
-    });
+    if (newWinnersThisTurn.length > 0) {
+      room.status = 'finished';
+      console.log(`Bingo completed in room ${cleanRoomId}! Simultaneous winners this turn:`, newWinnersThisTurn, "All round winners:", room.winners);
+
+      // Broadcast wordSelected first so all client boards update their stamps
+      io.to(cleanRoomId).emit('wordSelected', {
+        word: cleanWord,
+        selectedBy: name,
+        nextTurnPlayer: nextPlayerName,
+        players: getPlayerList(room),
+        drawnWords: room.drawnWords
+      });
+
+      // Broadcast bingoCompleted shortly after so Victory modal displays all winners
+      setTimeout(() => {
+        io.to(cleanRoomId).emit('bingoCompleted', {
+          winners: room.winners,
+          newWinners: newWinnersThisTurn,
+          players: getPlayerList(room)
+        });
+      }, 500);
+    } else {
+      // Normal turn continuation
+      io.to(cleanRoomId).emit('wordSelected', {
+        word: cleanWord,
+        selectedBy: name,
+        nextTurnPlayer: nextPlayerName,
+        players: getPlayerList(room),
+        drawnWords: room.drawnWords
+      });
+    }
   });
 
-  // 6. Claim Bingo Success (Student)
+  // 6. Claim Bingo Success (Student client backup)
   socket.on('claimBingo', ({ roomId, name }) => {
-    const room = rooms[roomId];
-    if (!room || room.status !== 'playing') return;
+    const cleanRoomId = cleanString(roomId);
+    const room = rooms[cleanRoomId];
+    if (!room) return;
 
-    const player = room.players[name];
-    if (!player || player.won) return;
+    const player = room.players[cleanString(name)];
+    if (!player) return;
 
-    // Mark player as won in this round
-    player.won = true;
-    
-    if (!room.winners.includes(name)) {
-      room.winners.push(name);
+    const { count } = checkBingos(player.stamped, room.gridSize.rows, room.gridSize.cols);
+    if (count >= room.targetBingo) {
+      player.won = true;
+      if (!room.winners.includes(player.name)) {
+        room.winners.push(player.name);
+      }
+      if (!room.allTimeWinners.includes(player.name)) {
+        room.allTimeWinners.push(player.name);
+      }
+      room.status = 'finished';
+
+      console.log(`Player [${player.name}] claimed bingo in room ${cleanRoomId}. Current winners:`, room.winners);
+
+      io.to(cleanRoomId).emit('bingoCompleted', {
+        winners: room.winners,
+        winnerName: player.name,
+        players: getPlayerList(room)
+      });
     }
-
-    console.log(`Player ${name} completed bingo in room ${roomId}!`);
-
-    // Broadcast bingo success
-    io.to(roomId).emit('bingoCompleted', {
-      winners: room.winners,
-      winnerName: name,
-      players: getPlayerList(room)
-    });
-    
-    // Pause game state to finished/victory screen
-    room.status = 'finished';
   });
 
   // 7. Continue Game (Host)
